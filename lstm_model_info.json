@@ -1,0 +1,17 @@
+{
+  "model_type": "LSTM",
+  "total_parameters": 904451,
+  "trainable_parameters": 904451,
+  "best_val_accuracy": 94.88054607508532,
+  "total_training_time": 367.3589379787445,
+  "num_classes": 3,
+  "classes": [
+    "Create_new_Word_Document",
+    "Open_Gmail_on_Brave",
+    "Open_Youtube_on_Brave"
+  ],
+  "final_train_acc": 98.04081632653062,
+  "final_val_acc": 94.53924914675768,
+  "final_train_loss": 0.036950794297922585,
+  "final_val_loss": 0.1885116845369339
+}

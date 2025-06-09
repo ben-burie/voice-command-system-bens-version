@@ -1,0 +1,31 @@
+# Environment folders
+bark_env/
+env/
+venv/
+.env/
+
+# Data folders
+data_barkAI/
+data_barkAI_large/
+data/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Model checkpoints (optional - uncomment if you want to exclude large model files)
+# *.pth
+# *.ckpt

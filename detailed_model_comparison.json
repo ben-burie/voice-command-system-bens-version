@@ -1,0 +1,110 @@
+{
+  "performance": {
+    "Conformer": {
+      "accuracy": 98.33887043189368,
+      "avg_inference_time_ms": 1.0845233614628131,
+      "per_class_accuracy": {
+        "Create_new_Word_Document": 100.0,
+        "Open_Gmail_on_Brave": 97.95918367346938,
+        "Open_Youtube_on_Brave": 97.22222222222223
+      },
+      "total_samples": 301
+    },
+    "CNN": {
+      "accuracy": 96.67774086378738,
+      "avg_inference_time_ms": 0.2670187789660234,
+      "per_class_accuracy": {
+        "Create_new_Word_Document": 97.89473684210526,
+        "Open_Gmail_on_Brave": 94.89795918367346,
+        "Open_Youtube_on_Brave": 97.22222222222223
+      },
+      "total_samples": 301
+    },
+    "LSTM": {
+      "accuracy": 97.67441860465117,
+      "avg_inference_time_ms": 0.06083083840516898,
+      "per_class_accuracy": {
+        "Create_new_Word_Document": 100.0,
+        "Open_Gmail_on_Brave": 95.91836734693878,
+        "Open_Youtube_on_Brave": 97.22222222222223
+      },
+      "total_samples": 301
+    }
+  },
+  "complexity": {
+    "Conformer": {
+      "total_parameters": 1231619,
+      "trainable_parameters": 1231619,
+      "model_size_mb": 4.698253631591797,
+      "memory_usage_mb": 158.57861328125
+    },
+    "CNN": {
+      "total_parameters": 2618563,
+      "trainable_parameters": 2618563,
+      "model_size_mb": 9.989025115966797,
+      "memory_usage_mb": 31.04736328125
+    },
+    "LSTM": {
+      "total_parameters": 904451,
+      "trainable_parameters": 904451,
+      "model_size_mb": 3.450206756591797,
+      "memory_usage_mb": 65.19970703125
+    }
+  },
+  "model_info": {
+    "CNN": {
+      "model_type": "CNN",
+      "total_parameters": 2618563,
+      "trainable_parameters": 2618563,
+      "best_val_accuracy": 93.5374149659864,
+      "total_training_time": 370.06392192840576,
+      "num_classes": 3,
+      "classes": [
+        "Create_new_Word_Document",
+        "Open_Gmail_on_Brave",
+        "Open_Youtube_on_Brave"
+      ],
+      "final_train_acc": 93.05555555555556,
+      "final_val_acc": 93.5374149659864,
+      "final_train_loss": 0.1757658771597422,
+      "final_val_loss": 0.19378877934068442
+    },
+    "LSTM": {
+      "model_type": "LSTM",
+      "total_parameters": 904451,
+      "trainable_parameters": 904451,
+      "best_val_accuracy": 94.88054607508532,
+      "total_training_time": 367.3589379787445,
+      "num_classes": 3,
+      "classes": [
+        "Create_new_Word_Document",
+        "Open_Gmail_on_Brave",
+        "Open_Youtube_on_Brave"
+      ],
+      "final_train_acc": 98.04081632653062,
+      "final_val_acc": 94.53924914675768,
+      "final_train_loss": 0.036950794297922585,
+      "final_val_loss": 0.1885116845369339
+    },
+    "Conformer": {
+      "model_type": "Conformer",
+      "total_parameters": 1231619,
+      "trainable_parameters": 1231619,
+      "num_classes": 3,
+      "classes": [
+        "Create_new_Word_Document",
+        "Open_Gmail_on_Brave",
+        "Open_Youtube_on_Brave"
+      ]
+    }
+  },
+  "dataset_info": {
+    "num_classes": 3,
+    "class_names": [
+      "Create_new_Word_Document",
+      "Open_Gmail_on_Brave",
+      "Open_Youtube_on_Brave"
+    ],
+    "dataset_path": "data_barkAI_large"
+  }
+}
