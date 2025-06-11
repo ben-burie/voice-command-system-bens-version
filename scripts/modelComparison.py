@@ -15,13 +15,13 @@ from tqdm import tqdm
 import math
 
 # Import model architectures
-from trainConformerv2 import ConformerModel, BarkVoiceCommandDataset
+from trainConformer import ConformerModel, BarkVoiceCommandDataset
 from trainCNN import CNNModel
 from trainLSTM import LSTMModel, BarkVoiceCommandDatasetLSTM
 
 # ------------------------ Model Comparison Class ------------------------
 class ModelComparison:
-    def __init__(self, dataset_path="data_barkAI_large"):
+    def __init__(self, dataset_path="../data_barkAI_large"):
         self.dataset_path = dataset_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
@@ -46,7 +46,7 @@ class ModelComparison:
         # Load Conformer model
         try:
             self.models['Conformer'] = ConformerModel(num_classes=self.num_classes).to(self.device)
-            self.models['Conformer'].load_state_dict(torch.load('conformer_best_model.pth', map_location=self.device))
+            self.models['Conformer'].load_state_dict(torch.load('../models/conformer_best_model.pth', map_location=self.device))
             self.models['Conformer'].eval()
             print("✓ Conformer model loaded")
         except Exception as e:
@@ -55,7 +55,7 @@ class ModelComparison:
         # Load CNN model
         try:
             self.models['CNN'] = CNNModel(num_classes=self.num_classes).to(self.device)
-            self.models['CNN'].load_state_dict(torch.load('cnn_best_model.pth', map_location=self.device))
+            self.models['CNN'].load_state_dict(torch.load('../models/cnn_best_model.pth', map_location=self.device))
             self.models['CNN'].eval()
             print("✓ CNN model loaded")
         except Exception as e:
@@ -64,7 +64,7 @@ class ModelComparison:
         # Load LSTM model
         try:
             self.models['LSTM'] = LSTMModel(num_classes=self.num_classes).to(self.device)
-            self.models['LSTM'].load_state_dict(torch.load('lstm_best_model.pth', map_location=self.device))
+            self.models['LSTM'].load_state_dict(torch.load('../models/lstm_best_model.pth', map_location=self.device))
             self.models['LSTM'].eval()
             print("✓ LSTM model loaded")
         except Exception as e:
@@ -75,8 +75,8 @@ class ModelComparison:
         print("Loading training information...")
         
         info_files = {
-            'CNN': 'cnn_model_info.json',
-            'LSTM': 'lstm_model_info.json'
+            'CNN': '../config/cnn_model_info.json',
+            'LSTM': '../config/lstm_model_info.json'
         }
         
         for model_name, file_path in info_files.items():
@@ -303,7 +303,7 @@ class ModelComparison:
         ax6.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('model_comparison_comprehensive.png', dpi=300, bbox_inches='tight')
+        plt.savefig('../results/June11/model_comparison_comprehensive.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def create_comparison_table(self, performance_results, complexity_results):
@@ -335,7 +335,7 @@ class ModelComparison:
         df = pd.DataFrame(table_data)
         
         # Save to CSV
-        df.to_csv('model_comparison_table.csv', index=False)
+        df.to_csv('../results/June11/model_comparison_table.csv', index=False)
         
         # Display table
         print("\n" + "="*80)
@@ -368,10 +368,10 @@ class ModelComparison:
             if 'labels' in detailed_results['performance'][model_name]:
                 del detailed_results['performance'][model_name]['labels']
         
-        with open('detailed_model_comparison.json', 'w') as f:
+        with open('../results/June11/detailed_model_comparison.json', 'w') as f:
             json.dump(detailed_results, f, indent=2)
         
-        print("✓ Detailed results saved to 'detailed_model_comparison.json'")
+        print("✓ Detailed results saved to '../results/June11/detailed_model_comparison.json'")
     
     def run_complete_comparison(self):
         """Run the complete model comparison pipeline"""
