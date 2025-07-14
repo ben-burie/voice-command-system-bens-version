@@ -1,0 +1,12 @@
+{
+  "voice_recognition": {
+    "confidence_threshold": 0.7,
+    "continuous_listening": true,
+    "wake_word": null
+  },
+  "system_stats": {
+    "commands_added": 1,
+    "last_training": "2025-07-09T20:58:05.365041",
+    "total_recognitions": 0
+  }
+}

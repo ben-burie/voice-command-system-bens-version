@@ -1,0 +1,54 @@
+{
+  "adaptive_settings": {
+    "base_learning_rate": 0.0001,
+    "fine_tune_epochs": 5,
+    "freeze_layers": true,
+    "adaptive_freezing": true,
+    "min_unfreeze_layers": 1,
+    "max_unfreeze_layers": 4,
+    "freezing_strategy": {
+      "small_model": {
+        "commands": 5,
+        "unfreeze_ratio": 0.3
+      },
+      "medium_model": {
+        "commands": 10,
+        "unfreeze_ratio": 0.4
+      },
+      "large_model": {
+        "commands": 20,
+        "unfreeze_ratio": 0.5
+      },
+      "very_large_model": {
+        "commands": 50,
+        "unfreeze_ratio": 0.6
+      }
+    },
+    "progressive_unfreezing": {
+      "enabled": true,
+      "start_epoch": 2,
+      "unfreeze_per_epoch": 0.5
+    }
+  },
+  "class_history": [],
+  "training_history": [
+    {
+      "timestamp": "2025-07-09T20:58:05.363034",
+      "type": "adaptive_incremental",
+      "new_commands": [
+        "Open_Reddit"
+      ],
+      "epochs": 5,
+      "best_val_acc": 93.75,
+      "strategy_used": {
+        "category": "small_model",
+        "unfreeze_layers": 3,
+        "unfreeze_ratio": 0.3,
+        "learning_rate": 8.782488562869419e-05,
+        "epochs": 5,
+        "num_commands": 4,
+        "total_blocks": 4
+      }
+    }
+  ]
+}

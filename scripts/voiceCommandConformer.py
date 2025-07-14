@@ -187,13 +187,23 @@ class ConformerVoiceCommandSystem:
         print(f"Using device: {self.device}")
         
         # Load the command labels from the data directory
-        self.commands = self._load_command_labels("data_barkAI")
+        self.commands = self._load_command_labels("data_barkAI_large")
         num_classes = len(self.commands)
         print(f"Detected {num_classes} command classes: {self.commands}")
         
         self.model = ConformerModel(num_classes=num_classes).to(self.device)
         checkpoint = torch.load(model_path, map_location=self.device)
-        self.model.load_state_dict(checkpoint)
+        
+        # Handle different checkpoint formats
+        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+            # New format with metadata
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            print("Loaded model from checkpoint with metadata")
+        else:
+            # Old format - direct state dict
+            self.model.load_state_dict(checkpoint)
+            print("Loaded model from direct state dict")
+        
         self.model.eval()
         print("Conformer model loaded successfully")
         
@@ -400,7 +410,7 @@ def main():
         print("Starting Conformer-based voice command recognition system...")
         print("Make sure your microphone is working and is the default input device")
         
-        model_path = "conformer_best_model.pth"
+        model_path = "models/conformer_best_model.pth"
         
         if not os.path.exists(model_path):
             print(f"Error: Model file not found at {model_path}")
