@@ -1,0 +1,7 @@
+{
+  "commands": {},
+  "last_trained": null,
+  "model_version": 1,
+  "auto_retrain": true,
+  "retrain_threshold": 5
+}

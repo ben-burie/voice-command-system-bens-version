@@ -18,10 +18,16 @@ print("Loading Bark AI models...")
 preload_models()
 
 speakers = [
+    "v2/en_speaker_0"
+]
+
+'''
+speakers = [
     "v2/en_speaker_0", "v2/en_speaker_1", "v2/en_speaker_2", 
     "v2/en_speaker_3", "v2/en_speaker_4", "v2/en_speaker_5",
     "v2/en_speaker_6", "v2/en_speaker_7", "v2/en_speaker_8", "v2/en_speaker_9"
 ]
+'''
 
 variations_per_speaker = 50
 

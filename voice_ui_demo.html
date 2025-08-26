@@ -278,6 +278,11 @@
                 this.responseDisplay = document.getElementById('responseDisplay');
                 this.waveAnimation = document.getElementById('waveAnimation');
                 this.commandCount = document.getElementById('commandCount');
+
+                // MediaRecorder and audio chunks for real implementation
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                // ................
                 
                 this.isListening = false;
                 this.isProcessing = false;
@@ -322,13 +327,71 @@
                 }
             }
             
-            startListening() {
+            async startListening() {
                 this.isListening = true;
                 this.micButton.classList.add('listening');
                 this.statusText.textContent = 'Listening... Speak now';
                 this.waveAnimation.classList.add('active');
                 this.commandDisplay.textContent = 'Listening for voice input...';
                 this.responseDisplay.textContent = '';
+
+                // Request microphone access and start recording
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    this.audioChunks = [];
+                    this.mediaRecorder = new MediaRecorder(stream);
+                    this.mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) this.audioChunks.push(e.data);
+                    };
+                    this.mediaRecorder.onstop = () => {
+                        // Create audio file (Blob) when recording stops
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                        // You can now upload, play, or process audioBlob as needed
+                        // Example: create a download link
+                        const url = URL.createObjectURL(audioBlob);
+                        console.log('Audio file URL:', url);
+
+                        // Create a temporary download link -- for debugging purposes
+                        // const a = document.createElement('a');
+                        // a.style.display = 'none';
+                        // a.href = url;
+                        // a.download = 'recording.webm';
+                        // a.textContent = 'Download recording';
+                        // document.body.appendChild(a);
+                        // a.click();
+                        // setTimeout(() => {
+                        //     document.body.removeChild(a);
+                        //     URL.revokeObjectURL(url);
+                        // }, 100);
+
+                        // Prepare form data
+                        const formData = new FormData();
+                        formData.append('file', audioBlob, 'recording.webm');
+
+                        // Send to FastAPI backend ********************************
+                        fetch('http://localhost:8000/upload-audio', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Server response:', data);
+                            // Optionally update UI with server response
+                            document.getElementById('responseDisplay').textContent = data.predicted_command;
+                        })
+                        .catch(error => {
+                            console.error('Upload failed:', error);
+                        });
+                        // **********************************************************
+                        
+                    };
+                    this.mediaRecorder.start();
+                } catch (err) {
+                    this.statusText.textContent = 'Microphone access denied';
+                    this.waveAnimation.classList.remove('active');
+                    this.isListening = false;
+                    return;
+                }
                 
                 setTimeout(() => {
                     if (this.isListening) {
@@ -341,6 +404,10 @@
                 this.isListening = false;
                 this.micButton.classList.remove('listening');
                 this.waveAnimation.classList.remove('active');
+                // Stop recording if active
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                }
             }
             
             processCommand() {
