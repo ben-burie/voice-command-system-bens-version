@@ -12,6 +12,8 @@ from pathlib import Path
 import keyboard
 import subprocess
 import win32com.client
+from scipy import signal
+from scipy.ndimage import uniform_filter1d
 # ------------------------ Conformer Model Components ------------------------
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=5000):
@@ -176,7 +178,7 @@ class ConformerModel(nn.Module):
 
 # ------------------------ Voice Command System ------------------------
 class ConformerVoiceCommandSystem:
-    def __init__(self, model_path, sample_rate=16000, window_duration=4):
+    def __init__(self, model_path, sample_rate=16000, window_duration=4, action_registry=None):
         self.debug_mode = True
         self.sample_rate = sample_rate
         self.window_duration = window_duration
@@ -216,16 +218,44 @@ class ConformerVoiceCommandSystem:
         self.audio_queue = queue.Queue()
         self.prediction_queue = queue.Queue()
         
+        # Default command actions
         self.command_actions = {
             'Open_Youtube_on_Brave': lambda: self._open_browser_url("brave", "youtube.com"),
             'Open_Gmail_on_Brave': lambda: self._open_browser_url("brave", "gmail.com"),
             'Create_new_Word_Document': lambda: self._open_word(),
             'stop': self.stop_listening,
         }
+        
+        # Merge with external action registry if provided
+        if action_registry:
+            self.command_actions.update(action_registry)
 
         self.is_listening = False
-        self.energy_threshold = 0.01
+        self.is_paused = False  # Add pause functionality
         
+        # Enhanced audio processing parameters
+        self.energy_threshold = 0.005  # Lowered threshold for low audio
+        self.adaptive_threshold = True
+        self.auto_gain_control = True
+        self.noise_reduction = True
+        self.audio_enhancement = True
+        
+        # Audio enhancement parameters
+        self.gain_factor = 2.0  # Initial gain boost
+        self.max_gain = 10.0    # Maximum gain limit
+        self.noise_floor = 0.001  # Noise floor estimation
+        self.smoothing_factor = 0.95  # For adaptive threshold
+        self.running_energy_avg = 0.01  # Running average of energy
+        
+        # Audio buffer for better processing
+        self.audio_buffer = []
+        self.buffer_size = 3  # Number of audio chunks to buffer
+        
+        print("\nAudio Enhancement Features Enabled:")
+        print(f"  - Adaptive Gain Control: {self.auto_gain_control}")
+        print(f"  - Noise Reduction: {self.noise_reduction}")
+        print(f"  - Audio Enhancement: {self.audio_enhancement}")
+        print(f"  - Initial Gain Factor: {self.gain_factor}x")
         print("\nInitialized with commands:", self.commands)
         print("\nMapped actions for:", list(self.command_actions.keys()))
     
@@ -247,17 +277,19 @@ class ConformerVoiceCommandSystem:
     def _open_browser_url(self, browser, url):
         """Open a URL in the specified browser"""
         try:
+            if not url.startswith(('http://', 'https://')):
+                url = f"https://{url}"
+            
             if browser.lower() == "brave":
-                # Adjust the path to your Brave browser executable
                 brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
                 if os.path.exists(brave_path):
-                    subprocess.Popen([brave_path, f"https://{url}"])
+                    subprocess.Popen([brave_path, url])
                     print(f"Opening {url} in Brave browser")
                 else:
-                    print(f"Brave browser not found at {brave_path}")
+                    print(f"Brave browser not found, using default browser")
+                    os.system(f"start {url}")
             else:
-                # Default to system default browser
-                os.system(f"start https://{url}")
+                os.system(f"start {url}")
                 print(f"Opening {url} in default browser")
         except Exception as e:
             print(f"Error opening browser: {e}")
@@ -276,6 +308,237 @@ class ConformerVoiceCommandSystem:
             except Exception as e:
                 print(f"Error opening Word: {e}")
     
+    def _open_application(self, app_path):
+        """Open an application"""
+        try:
+            subprocess.Popen(app_path, shell=True)
+            print(f"Opening application: {app_path}")
+        except Exception as e:
+            print(f"Error opening application: {e}")
+    
+    def _execute_system_command(self, cmd):
+        """Execute system command"""
+        try:
+            subprocess.run(cmd, shell=True)
+            print(f"Executed: {cmd}")
+        except Exception as e:
+            print(f"Error executing command: {e}")
+    
+    def _enhance_audio(self, audio_data):
+        """
+        Comprehensive audio enhancement for low input signals
+        """
+        try:
+            # Convert to numpy array if needed
+            if isinstance(audio_data, torch.Tensor):
+                audio_data = audio_data.numpy()
+            
+            audio_data = audio_data.flatten()
+            original_energy = np.mean(np.abs(audio_data))
+            
+            if self.debug_mode and original_energy > self.noise_floor:
+                print(f"Original audio energy: {original_energy:.6f}")
+            
+            # 1. Noise reduction using spectral subtraction
+            if self.noise_reduction:
+                audio_data = self._spectral_noise_reduction(audio_data)
+            
+            # 2. Automatic Gain Control (AGC)
+            if self.auto_gain_control:
+                audio_data = self._apply_automatic_gain_control(audio_data)
+            
+            # 3. Dynamic range compression
+            if self.audio_enhancement:
+                audio_data = self._apply_dynamic_compression(audio_data)
+            
+            # 4. High-pass filter to remove low-frequency noise
+            audio_data = self._apply_highpass_filter(audio_data)
+            
+            # 5. Adaptive threshold update
+            if self.adaptive_threshold:
+                self._update_adaptive_threshold(original_energy)
+            
+            enhanced_energy = np.mean(np.abs(audio_data))
+            
+            if self.debug_mode and enhanced_energy > self.noise_floor:
+                enhancement_ratio = enhanced_energy / (original_energy + 1e-8)
+                print(f"Enhanced audio energy: {enhanced_energy:.6f} (boost: {enhancement_ratio:.2f}x)")
+            
+            return audio_data
+            
+        except Exception as e:
+            print(f"Error in audio enhancement: {e}")
+            return audio_data.flatten() if hasattr(audio_data, 'flatten') else audio_data
+    
+    def _spectral_noise_reduction(self, audio_data):
+        """
+        Apply spectral subtraction for noise reduction
+        """
+        try:
+            # Compute STFT
+            f, t, stft = signal.stft(audio_data, fs=self.sample_rate, nperseg=512)
+            
+            # Estimate noise spectrum from first few frames (assumed to be noise)
+            noise_frames = min(5, stft.shape[1] // 4)
+            noise_spectrum = np.mean(np.abs(stft[:, :noise_frames]), axis=1, keepdims=True)
+            
+            # Apply spectral subtraction
+            magnitude = np.abs(stft)
+            phase = np.angle(stft)
+            
+            # Subtract noise spectrum with over-subtraction factor
+            alpha = 2.0  # Over-subtraction factor
+            beta = 0.01  # Spectral floor factor
+            
+            enhanced_magnitude = magnitude - alpha * noise_spectrum
+            enhanced_magnitude = np.maximum(enhanced_magnitude, beta * magnitude)
+            
+            # Reconstruct signal
+            enhanced_stft = enhanced_magnitude * np.exp(1j * phase)
+            _, enhanced_audio = signal.istft(enhanced_stft, fs=self.sample_rate, nperseg=512)
+            
+            return enhanced_audio[:len(audio_data)]  # Ensure same length
+            
+        except Exception as e:
+            if self.debug_mode:
+                print(f"Spectral noise reduction failed: {e}")
+            return audio_data
+    
+    def _apply_automatic_gain_control(self, audio_data):
+        """
+        Apply automatic gain control to boost low signals
+        """
+        try:
+            # Calculate RMS energy
+            rms_energy = np.sqrt(np.mean(audio_data ** 2))
+            
+            if rms_energy < self.noise_floor:
+                return audio_data
+            
+            # Target RMS level
+            target_rms = 0.1
+            
+            # Calculate required gain
+            required_gain = target_rms / (rms_energy + 1e-8)
+            
+            # Limit gain to prevent over-amplification
+            gain = min(required_gain, self.max_gain)
+            gain = max(gain, 1.0)  # Don't reduce signal
+            
+            # Apply gain with soft limiting
+            enhanced_audio = audio_data * gain
+            
+            # Soft limiting to prevent clipping
+            enhanced_audio = np.tanh(enhanced_audio * 0.9) / 0.9
+            
+            if self.debug_mode and gain > 1.1:
+                print(f"AGC applied gain: {gain:.2f}x")
+            
+            return enhanced_audio
+            
+        except Exception as e:
+            if self.debug_mode:
+                print(f"AGC failed: {e}")
+            return audio_data
+    
+    def _apply_dynamic_compression(self, audio_data):
+        """
+        Apply dynamic range compression to enhance quiet signals
+        """
+        try:
+            # Parameters for compression
+            threshold = 0.1
+            ratio = 4.0
+            attack_time = 0.003  # 3ms
+            release_time = 0.1   # 100ms
+            
+            # Convert time constants to samples
+            attack_samples = int(attack_time * self.sample_rate)
+            release_samples = int(release_time * self.sample_rate)
+            
+            # Calculate envelope
+            envelope = np.abs(audio_data)
+            
+            # Smooth envelope
+            for i in range(1, len(envelope)):
+                if envelope[i] > envelope[i-1]:
+                    # Attack
+                    alpha = 1.0 - np.exp(-1.0 / attack_samples)
+                else:
+                    # Release
+                    alpha = 1.0 - np.exp(-1.0 / release_samples)
+                
+                envelope[i] = alpha * envelope[i] + (1 - alpha) * envelope[i-1]
+            
+            # Apply compression
+            gain = np.ones_like(envelope)
+            over_threshold = envelope > threshold
+            
+            if np.any(over_threshold):
+                gain[over_threshold] = threshold / envelope[over_threshold]
+                gain[over_threshold] = gain[over_threshold] ** (1.0 / ratio - 1.0)
+            
+            # Apply makeup gain for signals below threshold
+            below_threshold = envelope <= threshold
+            if np.any(below_threshold):
+                makeup_gain = 2.0  # Boost quiet signals
+                gain[below_threshold] *= makeup_gain
+            
+            # Smooth gain changes
+            gain = uniform_filter1d(gain, size=int(0.01 * self.sample_rate))
+            
+            return audio_data * gain
+            
+        except Exception as e:
+            if self.debug_mode:
+                print(f"Dynamic compression failed: {e}")
+            return audio_data
+    
+    def _apply_highpass_filter(self, audio_data):
+        """
+        Apply high-pass filter to remove low-frequency noise
+        """
+        try:
+            # Design high-pass filter (remove frequencies below 80 Hz)
+            nyquist = self.sample_rate / 2
+            cutoff = 80 / nyquist
+            
+            # Use a 4th order Butterworth filter
+            b, a = signal.butter(4, cutoff, btype='high')
+            
+            # Apply filter
+            filtered_audio = signal.filtfilt(b, a, audio_data)
+            
+            return filtered_audio
+            
+        except Exception as e:
+            if self.debug_mode:
+                print(f"High-pass filter failed: {e}")
+            return audio_data
+    
+    def _update_adaptive_threshold(self, current_energy):
+        """
+        Update adaptive energy threshold based on ambient noise
+        """
+        try:
+            # Update running average of energy
+            self.running_energy_avg = (self.smoothing_factor * self.running_energy_avg + 
+                                     (1 - self.smoothing_factor) * current_energy)
+            
+            # Set threshold as multiple of running average
+            adaptive_threshold = max(self.running_energy_avg * 2.0, 0.001)
+            
+            # Smooth threshold changes
+            self.energy_threshold = (0.9 * self.energy_threshold + 
+                                   0.1 * adaptive_threshold)
+            
+            if self.debug_mode and abs(adaptive_threshold - self.energy_threshold) > 0.001:
+                print(f"Adaptive threshold updated: {self.energy_threshold:.6f}")
+                
+        except Exception as e:
+            if self.debug_mode:
+                print(f"Adaptive threshold update failed: {e}")
+    
     def execute_action(self, message):
         print(f"Action: {message}")
     
@@ -293,16 +556,24 @@ class ConformerVoiceCommandSystem:
         while self.is_listening:
             try:
                 audio_data = self.audio_queue.get(timeout=1)
-                energy = np.mean(np.abs(audio_data))
+                
+                # Skip audio processing if paused
+                if self.is_paused:
+                    continue
+                
+                # Apply audio enhancement for low input signals
+                enhanced_audio = self._enhance_audio(audio_data)
+                
+                energy = np.mean(np.abs(enhanced_audio))
                 
                 if energy < self.energy_threshold:
                     continue
                 
                 if self.debug_mode:
-                    print("\nProcessing audio input...")
+                    print("\nProcessing enhanced audio input...")
                 
-                # audio to waveform tensor
-                waveform = torch.FloatTensor(audio_data.flatten())
+                # Convert enhanced audio to waveform tensor
+                waveform = torch.FloatTensor(enhanced_audio.flatten())
                 
                 target_length = int(self.sample_rate * self.window_duration)
                 if waveform.size(0) < target_length:
@@ -327,13 +598,13 @@ class ConformerVoiceCommandSystem:
                     confidence, predicted = torch.max(probabilities, 1)
                     
                     if self.debug_mode:
+                        predicted_command = self.commands[predicted.item()]
                         print(f"Prediction index: {predicted.item()}")
                         print(f"Confidence: {confidence.item():.4f}")
-                        predicted_command = self.commands[predicted.item()]
                         print(f"Predicted command: {predicted_command}")
                     
-                    # Higher confidence threshold to reduce false positives
-                    if confidence.item() > 0.6:
+                    # Simple confidence check
+                    if confidence > 0.5:
                         self.prediction_queue.put(predicted.item())
             
             except queue.Empty:
@@ -347,6 +618,11 @@ class ConformerVoiceCommandSystem:
         while self.is_listening:
             try:
                 predicted_idx = self.prediction_queue.get(timeout=1)
+                
+                # Skip command execution if paused
+                if self.is_paused:
+                    continue
+                
                 command = self.commands[predicted_idx]
                 print(f"\nRecognized command: {command}")
                 
@@ -359,6 +635,56 @@ class ConformerVoiceCommandSystem:
                 continue
             except Exception as e:
                 print(f"Error executing command: {e}")
+    
+    def adjust_audio_settings(self, setting, value):
+        """
+        Dynamically adjust audio enhancement settings
+        """
+        try:
+            if setting == "gain_factor":
+                self.gain_factor = max(1.0, min(value, self.max_gain))
+                print(f"Gain factor set to: {self.gain_factor}x")
+            elif setting == "energy_threshold":
+                self.energy_threshold = max(0.001, min(value, 0.1))
+                print(f"Energy threshold set to: {self.energy_threshold}")
+            elif setting == "noise_reduction":
+                self.noise_reduction = bool(value)
+                print(f"Noise reduction: {'enabled' if self.noise_reduction else 'disabled'}")
+            elif setting == "auto_gain_control":
+                self.auto_gain_control = bool(value)
+                print(f"Auto gain control: {'enabled' if self.auto_gain_control else 'disabled'}")
+            elif setting == "audio_enhancement":
+                self.audio_enhancement = bool(value)
+                print(f"Audio enhancement: {'enabled' if self.audio_enhancement else 'disabled'}")
+            elif setting == "adaptive_threshold":
+                self.adaptive_threshold = bool(value)
+                print(f"Adaptive threshold: {'enabled' if self.adaptive_threshold else 'disabled'}")
+            else:
+                print(f"Unknown setting: {setting}")
+                return False
+            return True
+        except Exception as e:
+            print(f"Error adjusting audio setting: {e}")
+            return False
+    
+    def show_audio_settings(self):
+        """
+        Display current audio enhancement settings
+        """
+        print("\n" + "="*50)
+        print("CURRENT AUDIO ENHANCEMENT SETTINGS")
+        print("="*50)
+        print(f"Energy Threshold: {self.energy_threshold:.6f}")
+        print(f"Gain Factor: {self.gain_factor}x")
+        print(f"Max Gain Limit: {self.max_gain}x")
+        print(f"Noise Floor: {self.noise_floor:.6f}")
+        print(f"Running Energy Average: {self.running_energy_avg:.6f}")
+        print("\nFeature Status:")
+        print(f"  - Adaptive Threshold: {'✓' if self.adaptive_threshold else '✗'}")
+        print(f"  - Auto Gain Control: {'✓' if self.auto_gain_control else '✗'}")
+        print(f"  - Noise Reduction: {'✓' if self.noise_reduction else '✗'}")
+        print(f"  - Audio Enhancement: {'✓' if self.audio_enhancement else '✗'}")
+        print("="*50)
     
     def stop_listening(self):
         """Stop the voice command system"""

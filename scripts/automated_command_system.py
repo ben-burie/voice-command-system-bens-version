@@ -6,6 +6,7 @@ import numpy as np
 import sounddevice as sd
 import threading
 import time
+import queue
 from pathlib import Path
 import subprocess
 import win32com.client
@@ -91,6 +92,10 @@ class AutomatedCommandSystem:
                 browser = action_info.get("browser", "default")
                 if url:
                     self.action_registry[command_name] = lambda u=url, b=browser: self._open_website(u, b)
+            elif action_type == "system":
+                cmd = action_info.get("command")
+                if cmd:
+                    self.action_registry[command_name] = lambda c=cmd: self._execute_system_command(c)
             elif action_type == "custom":
                     self.action_registry[command_name] = lambda cn=command_name: print(f"Executing custom action for {cn}")
         
@@ -156,9 +161,6 @@ class AutomatedCommandSystem:
             f"Um, {command}",
             f"Uh, {command}",
             f"{command}, please",
-            f"Please {command}",
-            f"Can you {command}",
-            f"I want to {command}",
             f"{command} now",
             f"{command}!",
             f"{command}."
@@ -171,30 +173,32 @@ class AutomatedCommandSystem:
         return variations
     
     def _apply_audio_augmentations(self, audio: np.ndarray, sample_rate: int) -> List[np.ndarray]:
-        """Apply audio augmentations for robustness"""
+        """Apply audio augmentations for robustness - optimized version"""
         augmented_versions = [audio]  # Include original
         
         try:
-            # Advanced augmentations with librosa
-            slow_audio = librosa.effects.time_stretch(audio, rate=random.uniform(0.8, 0.95))
-            fast_audio = librosa.effects.time_stretch(audio, rate=random.uniform(1.05, 1.3))
-            augmented_versions.extend([slow_audio, fast_audio])
-            
-            # Pitch variations
-            low_pitch = librosa.effects.pitch_shift(audio, sr=sample_rate, n_steps=-1)
-            high_pitch = librosa.effects.pitch_shift(audio, sr=sample_rate, n_steps=1)
-            augmented_versions.extend([low_pitch, high_pitch])
-            
-            # Basic augmentations (always available)
-            # Volume variations
+            # Basic augmentations (fastest)
             quiet_audio = audio * 0.7
             loud_audio = np.clip(audio * 1.3, -1.0, 1.0)
             augmented_versions.extend([quiet_audio, loud_audio])
             
-            # Add slight noise for robustness
+            # Add slight noise for robustness (fast)
             noise_factor = 0.003
             noisy_audio = audio + noise_factor * np.random.randn(len(audio))
             augmented_versions.append(noisy_audio)
+            
+            # Limit librosa augmentations for speed - only use most effective ones
+            if random.random() < 0.6:  # 60% chance to apply librosa augmentations
+                if random.random() < 0.5:
+                    # Time stretch (choose one direction randomly)
+                    rate = random.choice([random.uniform(0.85, 0.95), random.uniform(1.05, 1.25)])
+                    time_stretched = librosa.effects.time_stretch(audio, rate=rate)
+                    augmented_versions.append(time_stretched)
+                else:
+                    # Pitch shift (choose one direction randomly)
+                    n_steps = random.choice([-1, 1])
+                    pitch_shifted = librosa.effects.pitch_shift(audio, sr=sample_rate, n_steps=n_steps)
+                    augmented_versions.append(pitch_shifted)
             
         except Exception as e:
             print(f"Audio augmentation error: {e}")
@@ -206,8 +210,8 @@ class AutomatedCommandSystem:
         Generate audio samples using Bark AI
         """
         if not BARK_AVAILABLE:
-            print("Bark AI not available, falling back to manual recording")
-            return self.record_audio_samples_manual(command_name, num_samples or 10)
+            print("Bark AI not available - cannot generate audio samples")
+            return []
         
         self._load_bark_models()
         
@@ -239,29 +243,35 @@ class AutomatedCommandSystem:
                 if sample_count >= num_samples:
                     break
                 
-                speaker_samples = 0
-                max_speaker_samples = samples_per_speaker + (5 if speaker_idx < (num_samples % len(self.speakers)) else 0)
+                # Calculate target samples for this speaker
+                speaker_target = min(samples_per_speaker, num_samples - sample_count)
                 
-                while speaker_samples < max_speaker_samples and sample_count < num_samples:
+                for sample_idx in range(speaker_target):
                     try:
-                        # Select random text variation
-                        text_variant = random.choice(text_variations)
+                        # Use text variations cyclically for consistency
+                        text_variant = text_variations[sample_idx % len(text_variations)]
                         
-                        # Generate audio with Bark
+                        # Generate base audio with Bark
                         audio_array = generate_audio(text_variant, history_prompt=speaker)
                         
-                        # Apply augmentations for robustness
+                        # Apply optimized augmentations
                         augmented_audios = self._apply_audio_augmentations(audio_array, SAMPLE_RATE)
                         
+                        # Limit augmented versions to control total count
+                        max_augs = min(len(augmented_audios), num_samples - sample_count)
+                        
                         # Save augmented versions
-                        for aug_idx, final_audio in enumerate(augmented_audios):
+                        for aug_idx in range(max_augs):
                             if sample_count >= num_samples:
                                 break
                             
-                            # Normalize audio
+                            final_audio = augmented_audios[aug_idx]
+                            
+                            # Fast normalization
                             final_audio = np.array(final_audio, dtype=np.float32)
-                            if np.max(np.abs(final_audio)) > 0:
-                                final_audio = final_audio / np.max(np.abs(final_audio)) * 0.9
+                            max_val = np.max(np.abs(final_audio))
+                            if max_val > 0:
+                                final_audio = final_audio * (0.9 / max_val)
                             
                             # Save file
                             filename = f"{command_name}_speaker{speaker_idx}_var{sample_count:03d}.wav"
@@ -271,7 +281,6 @@ class AutomatedCommandSystem:
                             generated_files.append(str(filepath))
                             
                             sample_count += 1
-                            speaker_samples += 1
                             pbar.update(1)
                             
                             if sample_count >= num_samples:
@@ -280,51 +289,15 @@ class AutomatedCommandSystem:
                     except Exception as e:
                         print(f"Warning: Error generating sample {sample_count}: {e}")
                         continue
+                    
+                    if sample_count >= num_samples:
+                        break
+                
+                if sample_count >= num_samples:
+                    break
         
         print(f"Generated {len(generated_files)} audio files using Bark AI")
         return generated_files
-    
-    def record_audio_samples_manual(self, command_name: str, num_samples: int = 10) -> List[str]:
-        """
-        Manually record audio samples (fallback method)
-        """
-        print(f"\nRecording {num_samples} samples for command: '{command_name}'")
-        print("Press ENTER when ready to start recording each sample...")
-        
-        # Create command directory
-        command_dir = self.base_data_dir / command_name
-        command_dir.mkdir(exist_ok=True)
-        
-        recorded_files = []
-        
-        for i in range(num_samples):
-            input(f"\nSample {i+1}/{num_samples} - Press ENTER to start recording...")
-            
-            print(f"Recording sample {i+1}... Speak now!")
-            
-            # Record audio
-            audio_data = sd.rec(
-                int(self.recording_duration * self.sample_rate),
-                samplerate=self.sample_rate,
-                channels=1,
-                dtype=np.float32
-            )
-            sd.wait()  # Wait for recording to complete
-            
-            print("Recording complete!")
-            
-            # Save audio file
-            filename = f"{command_name}_sample_{i+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
-            filepath = command_dir / filename
-            
-            # Convert to tensor and save
-            audio_tensor = torch.from_numpy(audio_data.flatten())
-            torchaudio.save(str(filepath), audio_tensor.unsqueeze(0), self.sample_rate)
-            
-            recorded_files.append(str(filepath))
-            print(f"Saved: {filename}")
-        
-        return recorded_files
     
     #fix
     def add_new_command(self, command_name: str, action_info: Dict, action_function: Callable, 
@@ -342,15 +315,14 @@ class AutomatedCommandSystem:
         try:
             print(f"\n Adding New Command: {command_name}")
             
-            # Generate or record audio samples
+            # Generate audio samples using Bark AI
             if use_bark and BARK_AVAILABLE:
                 print(" Using Bark AI for audio generation...")
                 generated_files = self.generate_bark_audio_samples(command_name, num_samples)
                 generation_method = "bark_ai"
             else:
-                print(" Using manual recording...")
-                generated_files = self.record_audio_samples_manual(command_name, num_samples or 10)
-                generation_method = "manual_recording"
+                print(" Bark AI not available - cannot add command without audio samples")
+                return False
             
             # Update command configuration
             #fix
@@ -361,9 +333,6 @@ class AutomatedCommandSystem:
                 "sample_count": len(generated_files),
                 "generation_method": generation_method
             }
-            
-            # Save configuration
-            self._save_command_config(self.command_config)
             
             # Save configuration
             self._save_command_config(self.command_config)
@@ -391,59 +360,41 @@ class AutomatedCommandSystem:
     
     def retrain_model(self) -> bool:
         """
-        Retrain the conformer model with all available commands
+        Retrain the conformer model with all available commands using adaptive incremental trainer
         """
         try:
             print("\n=== Retraining Conformer Model ===")
             
-            # Import training components
-            from trainConformer import BarkVoiceCommandDataset, train_model
-            from torch.utils.data import DataLoader
+            # Use the adaptive incremental trainer for full retraining
+            from adaptive_incremental_trainer import AdaptiveIncrementalTrainer
             
-            # Create datasets
-            print("Creating training datasets...")
-            train_dataset = BarkVoiceCommandDataset(str(self.base_data_dir), mode='train')
-            val_dataset = BarkVoiceCommandDataset(str(self.base_data_dir), mode='val')
+            trainer = AdaptiveIncrementalTrainer(
+                model_path=str(self.model_path),
+                base_data_dir=str(self.base_data_dir),
+                config_path=str(self.config_path.parent / "adaptive_incremental_config.json")
+            )
             
-            train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=2)
-            val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=2)
+            # Get all current commands for full retraining
+            all_commands = []
+            for folder in self.base_data_dir.iterdir():
+                if folder.is_dir():
+                    all_commands.append(folder.name)
             
-            # Initialize model
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            num_classes = len(train_dataset.unique_labels)
+            # Use incremental training with all commands (effectively full retraining)
+            success = trainer.incremental_train(all_commands, epochs=15)
             
-            print(f"Training with {num_classes} classes: {train_dataset.unique_labels}")
-            
-            # Load existing model if available, otherwise create new
-            model = ConformerModel(num_classes=num_classes).to(device)
-            
-            if self.model_path.exists():
-                try:
-                    checkpoint = torch.load(self.model_path, map_location=device)
-                    # Only load if the number of classes matches
-                    if model.classifier.out_features == checkpoint['classifier.weight'].shape[0]:
-                        model.load_state_dict(checkpoint)
-                        print(" Loaded existing model for fine-tuning")
-                    else:
-                        print(" Model architecture changed, training from scratch")
-                except:
-                    print(" Could not load existing model, training from scratch")
-            
-            # Train model with fewer epochs for fine-tuning
-            epochs = 10 if self.model_path.exists() else 20
-            print(f"Training for {epochs} epochs...")
-            
-            history = train_model(model, train_loader, val_loader, device, num_epochs=epochs)
-            
-            # Update configuration
-            self.command_config["last_trained"] = datetime.now().isoformat()
-            self.command_config["model_version"] += 1
-            self._save_command_config(self.command_config)
-            
-            self.commands_since_retrain = 0
-            
-            print(" Model retrained successfully!")
-            return True
+            if success:
+                # Update configuration
+                self.command_config["last_trained"] = datetime.now().isoformat()
+                self.command_config["model_version"] += 1
+                self._save_command_config(self.command_config)
+                
+                self.commands_since_retrain = 0
+                print(" Model retrained successfully!")
+                return True
+            else:
+                print(" Model retraining failed!")
+                return False
             
         except Exception as e:
             print(f" Error retraining model: {e}")
@@ -461,7 +412,7 @@ class AutomatedCommandSystem:
                 time.sleep(1)
             
             # Create new voice system with updated model and actions
-            self.voice_system = EnhancedConformerVoiceSystem(
+            self.voice_system = ConformerVoiceCommandSystem(
                 str(self.model_path), 
                 action_registry=getattr(self, 'action_registry', {})
             )
@@ -495,24 +446,34 @@ class AutomatedCommandSystem:
         print("\nAvailable action types:")
         print("1. Open application")
         print("2. Open website")
-        print("3. Custom action")
+        print("3. System command")
+        print("4. Custom action")
         
-        action_type = input("Select action type (1-3): ").strip()
+        action_type = input("Select action type (1-4): ").strip()
         
         action_function = None
+        action_info = None
         
         if action_type == "1":
             app_path = input("Enter application path or command: ").strip()
             action_function = lambda: self._open_application(app_path)
+            action_info = {"type": "app", "path": app_path}
             
         elif action_type == "2":
             url = input("Enter website URL: ").strip()
             browser = input("Enter browser (brave/chrome/default): ").strip() or "default"
             action_function = lambda: self._open_website(url, browser)
+            action_info = {"type": "website", "url": url, "browser": browser}
             
         elif action_type == "3":
+            cmd = input("Enter system command: ").strip()
+            action_function = lambda: self._execute_system_command(cmd)
+            action_info = {"type": "system", "command": cmd}
+            
+        elif action_type == "4":
             print("Custom action - you'll need to implement this in code")
             action_function = lambda: print(f"Executing custom action for {command_name}")
+            action_info = {"type": "custom"}
         
         else:
             print(" Invalid action type")
@@ -521,7 +482,7 @@ class AutomatedCommandSystem:
         # Add the command
         num_samples = int(input("Number of audio samples to record (default 10): ") or "10")
         
-        success = self.add_new_command(command_name, action_function, num_samples)
+        success = self.add_new_command(command_name, action_info, action_function, num_samples)
         
         if success:
             print(f" Command '{command_name}' added successfully!")
@@ -530,6 +491,14 @@ class AutomatedCommandSystem:
             reload = input("Reload voice system now? (y/n): ").strip().lower()
             if reload == 'y':
                 self.reload_voice_system()
+    
+    def _execute_system_command(self, cmd: str):
+        """Execute system command"""
+        try:
+            subprocess.run(cmd, shell=True)
+            print(f"Executed: {cmd}")
+        except Exception as e:
+            print(f"Error executing command: {e}")
         
     def _open_application(self, app_path: str):
         """Open an application"""
@@ -559,100 +528,24 @@ class AutomatedCommandSystem:
             print(f"Error opening website: {e}")
 
 
-class EnhancedConformerVoiceSystem(ConformerVoiceCommandSystem):
-    """
-    Enhanced voice system that supports dynamic command registration
-    """
-    
-    def __init__(self, model_path, action_registry=None, **kwargs):
-        super().__init__(model_path, **kwargs)
-        
-        # Merge with existing actions
-        if action_registry:
-            self.command_actions.update(action_registry)
-        
-        print(f"Enhanced system loaded with {len(self.command_actions)} actions")
-
-
-def demo_discord_action():
-    """Example action for opening Discord"""
-    try:
-        # Try to find Discord executable
-        discord_paths = [
-            os.path.expanduser("~\\AppData\\Local\\Discord\\Update.exe --processStart Discord.exe"),
-            "discord",  # If Discord is in PATH
-        ]
-        
-        for path in discord_paths:
-            try:
-                subprocess.Popen(path, shell=True)
-                print("Opening Discord...")
-                return
-            except:
-                continue
-        
-        print("Discord not found, please install Discord or update the path")
-    except Exception as e:
-        print(f"Error opening Discord: {e}")
-
 
 def main():
     """
-    Main function demonstrating the automated command system
+    Main function - redirects to Smart Voice System for unified interface
     """
     print("=== Automated Voice Command System ===")
+    print("Note: This system is now integrated into the Smart Voice System.")
+    print("Please use smart_voice_system.py for the complete interface.")
+    print("\nStarting Smart Voice System...")
     
-    # Initialize the system
-    auto_system = AutomatedCommandSystem()
-    
-    while True:
-        print("\n" + "="*50)
-        print("1. Add new command interactively")
-        print("2. Add 'Open Discord' command (demo)")
-        print("3. Retrain model")
-        print("4. Start voice command system")
-        print("5. Show current commands")
-        print("6. Exit")
-        
-        choice = input("\nSelect option (1-6): ").strip()
-        
-        if choice == "1":
-            auto_system.add_command_interactive()
-            
-        elif choice == "2":
-            # Demo: Add Discord command
-            print("\nAdding 'Open Discord' command...")
-            success = auto_system.add_new_command(
-                "Open_Discord", 
-                demo_discord_action, 
-                num_samples=8,
-                auto_train=False
-            )
-            if success:
-                print(" Discord command added! You can now retrain the model.")
-            
-        elif choice == "3":
-            auto_system.retrain_model()
-            
-        elif choice == "4":
-            print("Starting voice command system...")
-            print("Say 'stop' or press 'q' to quit")
-            auto_system.start_voice_system()
-            
-        elif choice == "5":
-            commands = auto_system.command_config.get("commands", {})
-            print(f"\nCurrent commands ({len(commands)}):")
-            for cmd, info in commands.items():
-                print(f"  - {cmd} (samples: {info.get('sample_count', 0)})")
-            
-        elif choice == "6":
-            print("Goodbye!")
-            break
-            
-        else:
-            print("Invalid option, please try again.")
+    # Import and run the smart system
+    try:
+        from smart_voice_system import main as smart_main
+        smart_main()
+    except ImportError:
+        print("Error: Could not import smart_voice_system.py")
+        print("Please run: python scripts/smart_voice_system.py")
 
 
 if __name__ == "__main__":
     main()
-

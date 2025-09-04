@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Dict, List, Callable, Optional
 import subprocess
 
-from automated_command_system import AutomatedCommandSystem, EnhancedConformerVoiceSystem
+from automated_command_system import AutomatedCommandSystem
+from voiceCommandConformer import ConformerVoiceCommandSystem
 from adaptive_incremental_trainer import AdaptiveIncrementalTrainer, SmartRetrainingScheduler
 
 class SmartVoiceCommandSystem:
@@ -40,6 +41,7 @@ class SmartVoiceCommandSystem:
         
         self.voice_system = None
         self.is_running = False
+        self.is_paused = False
         self.pending_commands = []
         
         self.config = self._load_config()
@@ -56,7 +58,7 @@ class SmartVoiceCommandSystem:
         else:
             config = {
                 "voice_recognition": {
-                    "confidence_threshold": 0.7,
+                    "confidence_threshold": 0.75,
                     "continuous_listening": True,
                     "wake_word": None
                 },
@@ -170,7 +172,7 @@ class SmartVoiceCommandSystem:
                 time.sleep(1)
             
             # Create new voice system
-            self.voice_system = EnhancedConformerVoiceSystem(
+            self.voice_system = ConformerVoiceCommandSystem(
                 str(self.model_path),
                 action_registry=getattr(self.automated_system, 'action_registry', {})
             )
@@ -196,6 +198,38 @@ class SmartVoiceCommandSystem:
         thread = threading.Thread(target=voice_worker, daemon=True)
         thread.start()
     
+    def pause_system(self):
+        """Pause voice recognition for presentations"""
+        if self.is_running and not self.is_paused:
+            self.is_paused = True
+            # Set pause flag on voice system
+            if self.voice_system:
+                self.voice_system.is_paused = True
+            print("\nVoice system PAUSED - Safe for presentations")
+            print("   Voice commands will not be processed")
+            print("   Press 'r' to resume listening")
+        else:
+            print("\n Voice system is not running or already paused")
+    
+    def resume_system(self):
+        """Resume voice recognition after pause"""
+        if self.is_running and self.is_paused:
+            self.is_paused = False
+            # Clear pause flag on voice system
+            if self.voice_system:
+                self.voice_system.is_paused = False
+            print("\nVoice system RESUMED - Listening for commands")
+            print("   Press 'p' to pause for presentations")
+        else:
+            print("\n Voice system is not paused or not running")
+    
+    def toggle_pause(self):
+        """Toggle pause/resume state"""
+        if self.is_paused:
+            self.resume_system()
+        else:
+            self.pause_system()
+    
     def start_system(self):
         """Start the complete smart voice system"""
         try:
@@ -203,18 +237,22 @@ class SmartVoiceCommandSystem:
             
             # Initialize voice system if not exists
             if not self.voice_system:
-                self.voice_system = EnhancedConformerVoiceSystem(
+                self.voice_system = ConformerVoiceCommandSystem(
                     str(self.model_path),
                     action_registry=getattr(self.automated_system, 'action_registry', {})
                 )
             
             self.is_running = True
+            self.is_paused = False
             self._start_voice_recognition()
             
             print(" Smart Voice System is running!")
             print(" Listening for voice commands...")
             print(" You can add new commands while the system is running")
-            print(" Press Ctrl+C to stop")
+            print("\nPRESENTATION CONTROLS:")
+            print("   Press 'p' to PAUSE voice recognition (safe for presentations)")
+            print("   Press 'r' to RESUME voice recognition")
+            print("   Press 'Ctrl+C' to stop completely")
             
         except Exception as e:
             print(f" Error starting system: {e}")
@@ -234,91 +272,9 @@ class SmartVoiceCommandSystem:
             print(f" Error stopping system: {e}")
     
     def add_command_interactive_smart(self):
-        """Interactive command addition with smart training"""
-        print("\n Smart Interactive Command Addition")
-        
-        command_name = input("Enter command name (e.g., 'Open_Discord'): ").strip()
-        if not command_name:
-            print(" Command name cannot be empty")
-            return
-        
-        print("\nAction types:")
-        print("1. Open application")
-        print("2. Open website") 
-        print("3. System command")
-        print("4. Custom action")
-        
-        action_type = input("Select action type (1-4): ").strip()
-        action_function = None
-        action_info = None  # Initialize to None
-        
-        if action_type == "1":
-            app_path = input("Enter application path/command: ").strip()
-            action_function = lambda: self._execute_app(app_path)
-            action_info = {"type": "app", "path": app_path}  # Create the dictionary
-            
-        elif action_type == "2":
-            url = input("Enter website URL: ").strip()
-            browser = input("Browser (brave/chrome/default): ").strip() or "default"
-            action_function = lambda: self._execute_website(url, browser)
-            action_info = {"type": "website", "url": url, "browser": browser} # Create the dictionary
-            
-        elif action_type == "3":
-            cmd = input("Enter system command: ").strip()
-            action_function = lambda: self._execute_system_command(cmd)
-            
-        elif action_type == "4":
-            print("Custom action - implement in code")
-            action_function = lambda: print(f"Custom action: {command_name}")
-        
-        else:
-            print(" Invalid action type")
-            return
-        
-        # Get number of samples
-        num_samples = int(input("Number of audio samples (default 8): ") or "8")
-        
-        # Add command with smart training
-        success = self.add_command_smart(command_name, action_info, action_function, num_samples)
-        
-        if success:
-            print(f" Command '{command_name}' added successfully!")
-            print(" Smart training will be handled automatically")
-    
-    def _execute_app(self, app_path: str):
-        """Execute application"""
-        try:
-            subprocess.Popen(app_path, shell=True)
-            print(f" Opened: {app_path}")
-        except Exception as e:
-            print(f" Error opening app: {e}")
-    
-    def _execute_website(self, url: str, browser: str):
-        """Execute website opening"""
-        try:
-            if not url.startswith(('http://', 'https://')):
-                url = f"https://{url}"
-            
-            if browser.lower() == "brave":
-                brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
-                if os.path.exists(brave_path):
-                    subprocess.Popen([brave_path, url])
-                else:
-                    os.system(f"start {url}")
-            else:
-                os.system(f"start {url}")
-            
-            print(f" Opened: {url}")
-        except Exception as e:
-            print(f" Error opening website: {e}")
-    
-    def _execute_system_command(self, cmd: str):
-        """Execute system command"""
-        try:
-            subprocess.run(cmd, shell=True)
-            print(f" Executed: {cmd}")
-        except Exception as e:
-            print(f" Error executing command: {e}")
+        """Interactive command addition with smart training - delegates to automated system"""
+        # Use the automated system's interactive function but with smart training
+        return self.automated_system.add_command_interactive()
     
     def show_system_status(self):
         """Show current system status"""
@@ -335,6 +291,9 @@ class SmartVoiceCommandSystem:
         print(f" Commands Added: {stats['commands_added']}")
         print(f" Last Training: {stats.get('last_training', 'Never')}")
         print(f" System Running: {'Yes' if self.is_running else 'No'}")
+        if self.is_running:
+            status_icon = "PAUSED" if self.is_paused else "LISTENING"
+            print(f" Voice Status: {status_icon}")
         
         # Recent commands
         if all_commands:
@@ -344,127 +303,124 @@ class SmartVoiceCommandSystem:
             if len(all_commands) > 5:
                 print(f"  ... and {len(all_commands) - 5} more")
 
-
-def demo_actions():
-    """Demo action functions"""
-    
-    def open_discord():
-        try:
-            discord_paths = [
-                os.path.expanduser("~\\AppData\\Local\\Discord\\Update.exe --processStart Discord.exe"),
-                "discord"
-            ]
-            for path in discord_paths:
-                try:
-                    subprocess.Popen(path, shell=True)
-                    print(" Discord opened!")
-                    return
-                except:
-                    continue
-            print(" Discord not found")
-        except Exception as e:
-            print(f" Error opening Discord: {e}")
-    
-    def open_calculator():
-        try:
-            subprocess.Popen("calc", shell=True)
-            print(" Calculator opened!")
-        except Exception as e:
-            print(f" Error opening calculator: {e}")
-    
-    def open_notepad():
-        try:
-            subprocess.Popen("notepad", shell=True)
-            print(" Notepad opened!")
-        except Exception as e:
-            print(f" Error opening notepad: {e}")
-    
-    return {
-        "Open_Discord": open_discord,
-        "Open_Calculator": open_calculator,
-        "Open_Notepad": open_notepad
-    }
-
-
 def main():
     """Main function for the Smart Voice Command System"""
-    print(" Smart Voice Command System")
+    print("Smart Voice Command System")
     print("=" * 50)
     
     # Initialize system
     smart_system = SmartVoiceCommandSystem()
     
-    # Demo actions
-    demo_funcs = demo_actions()
-    
     try:
         while True:
             print("\n" + "=" * 50)
-            print("1.  Add command (Smart)")
+            print("MAIN MENU")
+            print("=" * 50)
+            print("1.  Add command (Smart with incremental training)")
             print("2.  Start voice system")
             print("3.  Stop voice system")
-            print("4.  Show system status")
-            print("5.  Add demo commands")
-            print("6.  Force retrain model")
-            print("7.  Finetune model (pending commands)")
-            print("8.  Exit")
+            print("4.  Show system status & commands")
+            print("5.  Force retrain model (full retraining)")
+            print("6.  Finetune model (pending commands only)")
+            print("7.  Exit")
             
-            choice = input("\nSelect option (1-8): ").strip()
+            choice = input("\nSelect option (1-7): ").strip()
             
             if choice == "1":
+                # Smart command addition with incremental training
                 smart_system.add_command_interactive_smart()
                 
             elif choice == "2":
+                print("\nStarting voice system...")
                 smart_system.start_system()
                 try:
+                    import keyboard
                     while smart_system.is_running:
-                        time.sleep(1)
+                        # Check for keyboard input
+                        if keyboard.is_pressed('p'):
+                            if not smart_system.is_paused:
+                                smart_system.pause_system()
+                                time.sleep(0.5)  # Prevent multiple triggers
+                        elif keyboard.is_pressed('r'):
+                            if smart_system.is_paused:
+                                smart_system.resume_system()
+                                time.sleep(0.5)  # Prevent multiple triggers
+                        time.sleep(0.1)
+                except ImportError:
+                    print("Keyboard module not available. Using basic mode without pause/resume controls.")
+                    try:
+                        while smart_system.is_running:
+                            time.sleep(1)
+                    except KeyboardInterrupt:
+                        smart_system.stop_system()
                 except KeyboardInterrupt:
                     smart_system.stop_system()
                     
             elif choice == "3":
+                print("\nStopping voice system...")
                 smart_system.stop_system()
                 
             elif choice == "4":
+                print("\nSystem Status")
                 smart_system.show_system_status()
                 
-            elif choice == "5":
-                print(" Adding demo commands...")
-                for cmd_name, cmd_func in demo_funcs.items():
-                    print(f"Adding {cmd_name}...")
-                    smart_system.add_command_smart(cmd_name, cmd_func, num_samples=6)
+                # Also show detailed command list
+                commands = smart_system.automated_system.command_config.get("commands", {})
+                if commands:
+                    print(f"\nDetailed Command List ({len(commands)} total):")
+                    for cmd, info in commands.items():
+                        method = info.get('generation_method', 'unknown')
+                        samples = info.get('sample_count', 0)
+                        date = info.get('added_date', 'unknown')[:10] if info.get('added_date') else 'unknown'
+                        action_type = info.get('action', {}).get('type', 'unknown')
+                        print(f"   • {cmd}")
+                        print(f"     └─ Type: {action_type} | Samples: {samples} | Method: {method} | Added: {date}")
+                else:
+                    print("\nNo commands configured yet.")
                     
-            elif choice == "6":
-                print(" Force retraining...")
-                smart_system.automated_system.retrain_model()
-                smart_system._reload_voice_system()
+            elif choice == "5":
+                print("\n Force retraining (full model retraining)...")
+                print("This will retrain the entire model from scratch.")
+                confirm = input("Continue? (y/n): ").strip().lower()
+                if confirm == 'y':
+                    success = smart_system.automated_system.retrain_model()
+                    if success:
+                        smart_system._reload_voice_system()
+                        print("Full retraining completed!")
+                    else:
+                        print("Full retraining failed!")
+                else:
+                    print("Retraining cancelled.")
                 
-            elif choice == "7":
+            elif choice == "6":
+                print("\nIncremental finetuning...")
                 if smart_system.pending_commands:
-                    print(f" Finetuning model with pending commands: {smart_system.pending_commands}")
+                    print(f"Finetuning with pending commands: {smart_system.pending_commands}")
                     success = smart_system._finetune_model()
                     if success:
-                        print(" Model finetuning completed successfully!")
+                        print("Incremental finetuning completed successfully!")
                         smart_system.pending_commands.clear()
                         smart_system.config["system_stats"]["last_training"] = datetime.now().isoformat()
                         smart_system._save_config(smart_system.config)
                         smart_system._reload_voice_system()
                     else:
-                        print(" Model finetuning failed!")
+                        print("Incremental finetuning failed!")
                 else:
-                    print(" No pending commands to finetune with.")
+                    print("No pending commands to finetune with.")
+                    print("Add commands using option 1 to create pending commands for finetuning.")
                 
-            elif choice == "8":
+            elif choice == "7":
+                print("\nShutting down...")
                 smart_system.stop_system()
-                print(" Goodbye!")
+                print("Goodbye!")
                 break
                 
             else:
-                print(" Invalid option")
+                print("Invalid option. Please select 1-7.")
                 
     except KeyboardInterrupt:
         smart_system.stop_system()
-        print("\n System stopped by user")
+        print("\nSystem stopped by user")
 
 
 if __name__ == "__main__":

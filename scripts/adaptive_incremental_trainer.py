@@ -141,10 +141,13 @@ class AdaptiveIncrementalTrainer:
             if old_num_classes != num_classes:
                 print(f"Expanding model from {old_num_classes} to {num_classes} classes")
                 self.model = self._expand_model_classes(self.model, model_state, old_num_classes, num_classes)
+                # Clear optimizer state when model structure changes to avoid tensor size mismatch
+                self.optimizer_state = None
+                print("Cleared optimizer state due to model expansion")
             else:
                 self.model.load_state_dict(model_state)
+                self.optimizer_state = optimizer_state
             
-            self.optimizer_state = optimizer_state
             self.class_mapping = class_mapping
             
             print(f"Loaded model with {num_classes} classes")
@@ -279,13 +282,30 @@ class AdaptiveIncrementalTrainer:
                 weight_decay=1e-5
             )
             
+            # Check if model was expanded - if so, don't load old optimizer state
+            current_classes = len(self._get_current_classes())
             if self.optimizer_state:
                 try:
-                    optimizer.load_state_dict(self.optimizer_state)
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = lr
-                except:
-                    print("Could not load optimizer state, using fresh optimizer")
+                    # Check if optimizer state matches current model structure
+                    old_classifier_weight_shape = None
+                    for group in self.optimizer_state['state'].values():
+                        if 'exp_avg' in group:
+                            # Find classifier layer state by checking tensor shapes
+                            exp_avg_shape = group['exp_avg'].shape
+                            if len(exp_avg_shape) == 1:  # This could be classifier bias
+                                old_classifier_weight_shape = exp_avg_shape[0]
+                                break
+                    
+                    # Only load optimizer state if model structure hasn't changed
+                    if old_classifier_weight_shape is None or old_classifier_weight_shape == current_classes:
+                        optimizer.load_state_dict(self.optimizer_state)
+                        for param_group in optimizer.param_groups:
+                            param_group['lr'] = lr
+                        print("Loaded existing optimizer state")
+                    else:
+                        print(f"Model expanded from {old_classifier_weight_shape} to {current_classes} classes - using fresh optimizer")
+                except Exception as e:
+                    print(f"Could not load optimizer state ({e}), using fresh optimizer")
             
             criterion = nn.CrossEntropyLoss()
             
