@@ -16,12 +16,12 @@ class SmartVoiceCommandSystem:
     
     def __init__(self, 
                  base_data_dir: str = "data_barkAI_large",
-                 model_path: str = "models/conformer_best_model.pth",
+                 model_path: str = "models\saved/conformer_best_model.pth",
                  config_path: str = "config/smart_system_config.json"):
         
         self.base_data_dir = Path(base_data_dir)
         self.model_path = Path(model_path)
-        self.config_path = Path(config_path)
+        self.config_path = Path(config_path)model_path: str = "models\saved/conformer_best_model.pth"
         
         self.automated_system = AutomatedCommandSystem(
             base_data_dir=str(self.base_data_dir),
