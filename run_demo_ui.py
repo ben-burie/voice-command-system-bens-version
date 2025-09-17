@@ -17,6 +17,8 @@ def main():
         return 1
     
     # Check for required dependencies
+    # Seems unnecessary - may delete
+    '''
     try:
         import tkinter
         print("tkinter available")
@@ -24,7 +26,7 @@ def main():
         print("Error: tkinter not available")
         print("Please install tkinter (usually comes with Python)")
         return 1
-    
+    '''
     try:
         # Add current directory to Python path
         sys.path.insert(0, str(current_dir))

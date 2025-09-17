@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import threading
 import time
-import json
+#import json
 import sys
 import os
 from pathlib import Path

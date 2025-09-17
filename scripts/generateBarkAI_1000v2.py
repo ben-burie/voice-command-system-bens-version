@@ -105,7 +105,7 @@ speakers = [
 ]
 
 # Generate 500 samples per command with 50 samples per speaker (10 speakers)
-total_samples_per_command = 250
+total_samples_per_command = 500 # Changed from 250 to 500
 samples_per_speaker = 25
 
 print(f"Generating {samples_per_speaker} samples per speaker for each command...")
