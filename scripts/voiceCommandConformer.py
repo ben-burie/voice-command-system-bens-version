@@ -731,6 +731,37 @@ class ConformerVoiceCommandSystem:
             print(traceback.format_exc())
             self.stop_listening()
 
+    def predict_command_from_wav(self, wav_path: str) -> str:
+        """Predict the command from a wav file path."""
+        import torchaudio
+
+        waveform, sr = torchaudio.load(wav_path)
+        if sr != self.sample_rate:
+            waveform = torchaudio.functional.resample(waveform, sr, self.sample_rate)
+        if waveform.size(0) > 1:
+            waveform = waveform.mean(dim=0, keepdim=True)  # Convert to mono
+
+        # Pad or trim to target length
+        target_length = int(self.sample_rate * self.window_duration)
+        if waveform.size(1) < target_length:
+            waveform = torch.nn.functional.pad(waveform, (0, target_length - waveform.size(1)))
+        else:
+            excess = waveform.size(1) - target_length
+            start = excess // 2
+            waveform = waveform[:, start:start + target_length]
+
+        with torch.no_grad():
+            mel_spec = self.mel_spec_transform(waveform)
+            mel_spec = torchaudio.transforms.AmplitudeToDB()(mel_spec)
+            mel_spec = (mel_spec - mel_spec.mean()) / (mel_spec.std() + 1e-8)
+            mel_spec = mel_spec.unsqueeze(0).to(self.device)
+            output = self.model(mel_spec)
+            probabilities = torch.nn.functional.softmax(output, dim=1)
+            confidence, predicted = torch.max(probabilities, 1)
+            predicted_command = self.commands[predicted.item()]
+            print(f"{wav_path}: {predicted_command} (confidence: {confidence.item():.2f})")
+            return predicted_command, confidence.item()
+
 def main():
     try:
         print("Starting Conformer-based voice command recognition system...")
