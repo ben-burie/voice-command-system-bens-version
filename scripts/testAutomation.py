@@ -129,38 +129,36 @@ def generate_input_command(testNum):
 
     speaker = get_random_speaker()
 
-    try:
-        # Select random text variation (pre-computed)
-        text_variant = text_variations[0 % len(text_variations)]
+    # Select random text variation (pre-computed)
+    text_variant = text_variations[0 % len(text_variations)]
+    
+    # Generate base audio with Bark
+    audio_array = generate_audio(text_variant, history_prompt=speaker)
+    
+    # Apply limited augmentations for speed
+    augmented_audios = _apply_audio_augmentations(audio_array, SAMPLE_RATE)
+    
+    # Save only the first few augmented versions to control total count
+    max_augs = 1
+    
+    for aug_idx in range(max_augs):
         
-        # Generate base audio with Bark
-        audio_array = generate_audio(text_variant, history_prompt=speaker)
+        final_audio = augmented_audios[aug_idx]
         
-        # Apply limited augmentations for speed
-        augmented_audios = _apply_audio_augmentations(audio_array, SAMPLE_RATE)
+        # Fast normalization
+        final_audio = np.array(final_audio, dtype=np.float32)
+        max_val = np.max(np.abs(final_audio))
+        if max_val > 0:
+            final_audio = final_audio * (0.9 / max_val)
         
-        # Save only the first few augmented versions to control total count
-        max_augs = 1
+        # Save file
+        filename = "test_" + str(testNum) + ".wav"
+        filepath = os.path.join(command_dir, filename)
         
-        for aug_idx in range(max_augs):
-            
-            final_audio = augmented_audios[aug_idx]
-            
-            # Fast normalization
-            final_audio = np.array(final_audio, dtype=np.float32)
-            max_val = np.max(np.abs(final_audio))
-            if max_val > 0:
-                final_audio = final_audio * (0.9 / max_val)
-            
-            # Save file
-            filename = "test_" + str(testNum) + ".wav"
-            filepath = os.path.join(command_dir, filename)
-            
-            write_wav(filepath, SAMPLE_RATE, final_audio)
-    except Exception as e:
-        print(f"Warning: Error generating sample")
+        #write_wav(filepath, SAMPLE_RATE, final_audio)
+        write_wav(filepath, SAMPLE_RATE, (final_audio * 32767).astype(np.int16))
 
-    return chosen_command
+    return chosen_command, filepath
 
 def run_tests(model_path, chosen_command, audio_input):
 
@@ -189,8 +187,9 @@ if __name__ == "__main__":
         for i in range(100):  # Run 100 test cases
             #audio_input = get_random_wav_file()
             print("Generating input command audio...")
-            chosen_command = generate_input_command(i)
-            audio_input = "input_file/test_" + str(i) + ".wav"
+            chosen_command, audio_input = generate_input_command(i)
+            #audio_input = "input_file/test_" + str(i) + ".wav"
+            assert os.path.exists(audio_input), f"Audio input file {audio_input} does not exist."
             prediction, expected_output, confidence = run_tests(model_path, chosen_command, audio_input)
             
             if prediction.lower() == expected_output.lower():
