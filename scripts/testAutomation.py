@@ -129,44 +129,48 @@ def generate_input_command(testNum):
 
     speaker = get_random_speaker()
 
-    print(f"[DEBUG] Generating Bark audio for command: '{command}'")
+    try:
+        print(f"[DEBUG] Generating Bark audio for command: '{command}'")
 
-    # Select random text variation (pre-computed)
-    text_variant = text_variations[0 % len(text_variations)]
+        # Select random text variation (pre-computed)
+        text_variant = text_variations[0 % len(text_variations)]
 
-    print(f"[DEBUG] Text variant: {text_variant}")
-    
-    # Generate base audio with Bark
-    audio_array = generate_audio(text_variant, history_prompt=speaker)
-    
-    print(f"[DEBUG] Bark audio_array type={type(audio_array)}, shape={getattr(audio_array, 'shape', None)}")
-
-    # Apply limited augmentations for speed
-    augmented_audios = _apply_audio_augmentations(audio_array, SAMPLE_RATE)
-
-    print(f"[DEBUG] Augmented audios type={type(augmented_audios)}, len={len(augmented_audios)}")
-    
-    # Save only the first few augmented versions to control total count
-    max_augs = 1
-    
-    for aug_idx in range(max_augs):
+        print(f"[DEBUG] Text variant: {text_variant}")
         
-        final_audio = augmented_audios[aug_idx]
+        # Generate base audio with Bark
+        audio_array = generate_audio(text_variant, history_prompt=speaker)
+        
+        print(f"[DEBUG] Bark audio_array type={type(audio_array)}, shape={getattr(audio_array, 'shape', None)}")
 
-        print(f"[DEBUG] Final audio shape={final_audio.shape}, dtype={final_audio.dtype}")
+        # Apply limited augmentations for speed
+        augmented_audios = _apply_audio_augmentations(audio_array, SAMPLE_RATE)
+
+        print(f"[DEBUG] Augmented audios type={type(augmented_audios)}, len={len(augmented_audios)}")
         
-        # Fast normalization
-        final_audio = np.array(final_audio, dtype=np.float32)
-        max_val = np.max(np.abs(final_audio))
-        if max_val > 0:
-            final_audio = final_audio * (0.9 / max_val)
+        # Save only the first few augmented versions to control total count
+        max_augs = 1
         
-        # Save file
-        filename = "test_" + str(testNum) + ".wav"
-        filepath = os.path.join(command_dir, filename)
-        
-        #write_wav(filepath, SAMPLE_RATE, final_audio)
-        write_wav(filepath, SAMPLE_RATE, (final_audio * 32767).astype(np.int16))
+        for aug_idx in range(max_augs):
+            
+            final_audio = augmented_audios[aug_idx]
+
+            print(f"[DEBUG] Final audio shape={final_audio.shape}, dtype={final_audio.dtype}")
+            
+            # Fast normalization
+            final_audio = np.array(final_audio, dtype=np.float32)
+            max_val = np.max(np.abs(final_audio))
+            if max_val > 0:
+                final_audio = final_audio * (0.9 / max_val)
+            
+            # Save file
+            filename = "test_" + str(testNum) + ".wav"
+            filepath = os.path.join(command_dir, filename)
+            
+            #write_wav(filepath, SAMPLE_RATE, final_audio)
+            write_wav(filepath, SAMPLE_RATE, (final_audio * 32767).astype(np.int16))
+    except Exception as e:
+        print(f"[ERROR] Bark generation failed: {e}")
+        raise   # re-raise so we see the traceback
 
     return chosen_command, filepath
 
