@@ -1,0 +1,2 @@
+Audio Input,Expected Command,Predicted Command,Match,Confidence
+input_file\test_0.wav,New_Word_Document,New_Word_Document,YES,0.9989

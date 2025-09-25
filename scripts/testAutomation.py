@@ -129,14 +129,22 @@ def generate_input_command(testNum):
 
     speaker = get_random_speaker()
 
+    print(f"[DEBUG] Generating Bark audio for command: '{command}'")
+
     # Select random text variation (pre-computed)
     text_variant = text_variations[0 % len(text_variations)]
+
+    print(f"[DEBUG] Text variant: {text_variant}")
     
     # Generate base audio with Bark
     audio_array = generate_audio(text_variant, history_prompt=speaker)
     
+    print(f"[DEBUG] Bark audio_array type={type(audio_array)}, shape={getattr(audio_array, 'shape', None)}")
+
     # Apply limited augmentations for speed
     augmented_audios = _apply_audio_augmentations(audio_array, SAMPLE_RATE)
+
+    print(f"[DEBUG] Augmented audios type={type(augmented_audios)}, len={len(augmented_audios)}")
     
     # Save only the first few augmented versions to control total count
     max_augs = 1
@@ -144,6 +152,8 @@ def generate_input_command(testNum):
     for aug_idx in range(max_augs):
         
         final_audio = augmented_audios[aug_idx]
+
+        print(f"[DEBUG] Final audio shape={final_audio.shape}, dtype={final_audio.dtype}")
         
         # Fast normalization
         final_audio = np.array(final_audio, dtype=np.float32)
@@ -184,7 +194,7 @@ if __name__ == "__main__":
         writer = csv.writer(file)
         writer.writerow(["Audio Input", "Expected Command", "Predicted Command", "Match", "Confidence"])
 
-        for i in range(100):  # Run 100 test cases
+        for i in range(1):  # Run 100 test cases
             #audio_input = get_random_wav_file()
             print("Generating input command audio...")
             chosen_command, audio_input = generate_input_command(i)
