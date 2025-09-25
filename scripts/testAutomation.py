@@ -18,30 +18,6 @@ except ImportError:
     print("Warning: librosa not available. Audio augmentations will be limited.")
     LIBROSA_AVAILABLE = False
 
-def get_random_wav_file():
-    files = [
-        "Get_Me_Gmail_1.wav",
-        "Get_Me_Gmail_2.wav",
-        "Get_Me_Gmail_3.wav",
-        "Get_Me_Gmail_4.wav",
-        "Get_Me_Gmail_5.wav",
-        "New_Word_Document_1.wav",
-        "New_Word_Document_2.wav",
-        "New_Word_Document_3.wav",
-        "New_Word_Document_4.wav",
-        "New_Word_Document_5.wav",
-        "Open_Youtube_On_Brave_1.wav",
-        "Open_Youtube_On_Brave_2.wav",
-        "Open_Youtube_On_Brave_3.wav",
-        "Open_Youtube_On_Brave_4.wav",
-        "Open_Youtube_On_Brave_5.wav"
-    ]
-
-    wav_file = files[random.randint(0, len(files) - 1)]
-    wav_path = "test_recordings/converted_wav/" + wav_file
-
-    return wav_path
-
 def get_matching_command(wav_file):
     filename = os.path.basename(wav_file)
     if filename.startswith("Get_Me_Gmail"):
@@ -142,7 +118,7 @@ def _apply_audio_augmentations(audio: np.ndarray, sample_rate: int):
     
     return augmented_versions
 
-def generate_input_command():
+def generate_input_command(testNum):
     # Using Bark AI to generate audio files for commands
     chosen_command = get_random_command()
     command_dir = os.path.join("input_file")
@@ -177,7 +153,7 @@ def generate_input_command():
                 final_audio = final_audio * (0.9 / max_val)
             
             # Save file
-            filename = "input_speaker_var.wav"
+            filename = "test_" + str(testNum) + ".wav"
             filepath = os.path.join(command_dir, filename)
             
             write_wav(filepath, SAMPLE_RATE, final_audio)
@@ -199,24 +175,22 @@ def run_tests(model_path, chosen_command, audio_input):
 
     return prediction, expected_output, confidence
 
-
-
 if __name__ == "__main__":
     model_path = os.path.join("models", "saved", "conformer_best_model_from_colab.pth")
     
     #print(getRandomWavFile())  # Test random file selection
     #print(run_tests(model_path, get_random_wav_file))
-    print("Generating input command audio...")
-    chosen_command = generate_input_command()
 
     print("Running tests...")
     with open("test_results.csv", mode="w", newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["Audio Input", "Expected Command", "Predicted Command", "Match", "Confidence"])
 
-        for _ in range(1):  # Run 1 test case
-            #udio_input = get_random_wav_file()
-            audio_input = "input_file/input_speaker_var.wav"
+        for i in range(100):  # Run 100 test cases
+            #audio_input = get_random_wav_file()
+            print("Generating input command audio...")
+            chosen_command = generate_input_command(i)
+            audio_input = "input_file/test_" + str(i) + ".wav"
             prediction, expected_output, confidence = run_tests(model_path, chosen_command, audio_input)
             
             if prediction.lower() == expected_output.lower():
@@ -226,6 +200,5 @@ if __name__ == "__main__":
 
             writer.writerow([audio_input, expected_output, prediction, match, round(confidence, 4)])
             #print(f"Audio Input: {audio_input}, Predicted: {prediction}, Expected: {expected_output}, Match: {match}")
-            print("Test", _)
+            print("Test", i)
             time.sleep(0.1)  # Pause between tests to simulate real-time processing
-    
