@@ -164,11 +164,10 @@ def generate_input_command(testNum, chosen_command):
     return chosen_command, filepath
 
 if __name__ == "__main__":
-    
-    chosen_command = get_random_command()
-    print(f"Chosen command: {chosen_command}")
 
-    for i in range(500): # Edit this number based on how many test files you want
+    for i in range(300): # Edit this number based on how many test files you want
+        chosen_command = get_random_command()
+        print(f"Chosen command: {chosen_command}")
         print("Generating input command audio...")
         chosen_command, audio_input = generate_input_command(i, chosen_command)
         assert os.path.exists(audio_input), f"Audio input file {audio_input} does not exist."
