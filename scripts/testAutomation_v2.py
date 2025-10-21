@@ -14,11 +14,11 @@ import numpy as np
 def get_matching_command(file):
     filename = os.path.basename(file)
     print(filename)
-    if filename[7:len(filename)] == "Get_Me_Gmail.wav":
+    if "Get_Me_Gmail" in filename:
         command = "Get_Me_Gmail"
-    elif filename[7:len(filename)] == "New_Word_Document":
+    elif "New_Word_Document" in filename:
         command = "New_Word_Document"
-    elif filename[7:len(filename)] == "Open_Youtube_On_Brave":
+    elif "Open_Youtube_On_Brave" in filename:
         command = "Open_Youtube_On_Brave"   
     else:
         command = "UNKNOWN COMMAND"
