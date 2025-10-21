@@ -1,22 +1,9 @@
-# Command to run: python -m scripts.simpleAudioGeneration
+# Command to run: python -m scripts.generate_test_inputs_fast
 
-import sys
 import os
-from pathlib import Path
-import time
-from scripts.voiceCommandConformer import ConformerVoiceCommandSystem
 import random
-import csv
-from bark import SAMPLE_RATE, generate_audio, preload_models
+from bark import SAMPLE_RATE, generate_audio
 from scipy.io.wavfile import write as write_wav
-import numpy as np
-
-try:
-    import librosa
-    LIBROSA_AVAILABLE = True
-except ImportError:
-    print("Warning: librosa not available. Audio augmentations will be limited.")
-    LIBROSA_AVAILABLE = False
 
 def get_random_command():
     commands = [
@@ -24,47 +11,48 @@ def get_random_command():
         "Get_Me_Gmail", 
         "New_Word_Document"
     ]
-    return commands[random.randint(0, len(commands) - 1)]
+    return random.choice(commands)
 
 def get_random_speaker():
     speakers = [
-    "v2/en_speaker_0", "v2/en_speaker_1", "v2/en_speaker_2", 
-    "v2/en_speaker_3", "v2/en_speaker_4", "v2/en_speaker_5",
-    "v2/en_speaker_6", "v2/en_speaker_7", "v2/en_speaker_8", "v2/en_speaker_9"
+        "v2/en_speaker_0", "v2/en_speaker_1", "v2/en_speaker_2", 
+        "v2/en_speaker_3", "v2/en_speaker_4", "v2/en_speaker_5",
+        "v2/en_speaker_6", "v2/en_speaker_7", "v2/en_speaker_8", "v2/en_speaker_9"
     ]
-    return speakers[random.randint(0, len(speakers) - 1)]
+    return random.choice(speakers)
 
-def generate_input_command(testNum, chosen_command):
-    # Using Bark AI to generate audio files for commands
-    #chosen_command = get_random_command() ###########################################
-    command_dir = os.path.join("input_file_simple")
-    os.makedirs(command_dir, exist_ok=True)
+def generate_input_command(test_num, chosen_command):
+    """Generate Bark AI audio for a given voice command."""
+    os.makedirs("input_file", exist_ok=True)
 
-    command = chosen_command.replace("_", " ")
-
+    # Prepare text
+    command_text = chosen_command.replace("_", " ")
     speaker = get_random_speaker()
 
+    print(f"[INFO] Generating Bark audio for command: '{command_text}' ({speaker})")
+
     try:
-        print(f"[DEBUG] Generating Bark audio for command: '{command}'")
+        # Generate audio
+        audio_array = generate_audio(command_text, history_prompt=speaker)
 
-        final_audio = generate_audio(command, speaker=speaker)
-        
-        # Save file
-        filename = "test_" + str(testNum) + "_" + chosen_command + ".wav"
-        filepath = os.path.join(command_dir, filename)
-        
-        write_wav(filepath, SAMPLE_RATE, final_audio)
+        # Save as WAV
+        filename = f"test_{test_num}_{chosen_command}.wav"
+        filepath = os.path.join("input_file", filename)
+        write_wav(filepath, SAMPLE_RATE, audio_array)
+
+        print(f"[OK] Saved: {filepath}")
+        return filepath
     except Exception as e:
-        print(f"[ERROR] Bark generation failed: {e}")
-        raise   # re-raise so we see the traceback
-
-    return chosen_command, filepath
+        print(f"[ERROR] Failed to generate audio for {chosen_command}: {e}")
+        return None
 
 if __name__ == "__main__":
-    for i in range(1): # Edit this number based on how many test files you want
+    from bark import preload_models
+    preload_models()
+    num_files = 1  # change as needed
+    for i in range(num_files):
         chosen_command = get_random_command()
-        print(f"Chosen command: {chosen_command}")
-        print("Generating input command audio...")
-        chosen_command, audio_input = generate_input_command(i, chosen_command)
-        assert os.path.exists(audio_input), f"Audio input file {audio_input} does not exist."
-        print(f"Generated audio file: {audio_input}")
+        print(f"\n[{i+1}/{num_files}] Command: {chosen_command}")
+        filepath = generate_input_command(i, chosen_command)
+        if filepath is None:
+            print("[WARN] Skipped due to error.")
