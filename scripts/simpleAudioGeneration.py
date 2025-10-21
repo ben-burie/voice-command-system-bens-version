@@ -49,7 +49,7 @@ def generate_input_command(test_num, chosen_command):
 if __name__ == "__main__":
     from bark import preload_models
     preload_models()
-    num_files = 1  # change as needed
+    num_files = 300  # change as needed
     for i in range(num_files):
         chosen_command = get_random_command()
         print(f"\n[{i+1}/{num_files}] Command: {chosen_command}")
