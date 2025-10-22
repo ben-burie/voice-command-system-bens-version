@@ -26,13 +26,11 @@ print("Loading Bark AI models...")
 preload_models()
 
 speakers = [
-    "v2/en_speaker_0", "v2/en_speaker_1", "v2/en_speaker_2", 
-    "v2/en_speaker_3", "v2/en_speaker_4", "v2/en_speaker_5",
-    "v2/en_speaker_6", "v2/en_speaker_7", "v2/en_speaker_8", "v2/en_speaker_9"
+    "v2/en_speaker_0"
 ]
 
 # Generate 500 samples per command with 50 samples per speaker (10 speakers)
-total_samples_per_command = 500 # Changed from 250 to 500
+total_samples_per_command = 250 # Changed from 250 to 500
 samples_per_speaker = 25
 
 print(f"Generating {samples_per_speaker} samples per speaker for each command...")

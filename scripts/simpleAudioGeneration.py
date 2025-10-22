@@ -1,58 +1,64 @@
 # Command to run: python -m scripts.generate_test_inputs_fast
 
 import os
-import random
-from bark import SAMPLE_RATE, generate_audio
+from bark import SAMPLE_RATE, generate_audio, preload_models
 from scipy.io.wavfile import write as write_wav
+import numpy as np
+import tqdm
 
-def get_random_command():
-    commands = [
-        "Open_Youtube_On_Brave",
-        "Get_Me_Gmail", 
-        "New_Word_Document"
-    ]
-    return random.choice(commands)
+# Simple generator: no text variations, no augmentations.
+# Produces `total_samples_per_command` samples per command using a single speaker.
 
-def get_random_speaker():
-    speakers = [
-        "v2/en_speaker_0", "v2/en_speaker_1", "v2/en_speaker_2", 
-        "v2/en_speaker_3", "v2/en_speaker_4", "v2/en_speaker_5",
-        "v2/en_speaker_6", "v2/en_speaker_7", "v2/en_speaker_8", "v2/en_speaker_9"
-    ]
-    return random.choice(speakers)
+output_dir = "data_barkAI_simple"
+os.makedirs(output_dir, exist_ok=True)
 
-def generate_input_command(test_num, chosen_command):
-    """Generate Bark AI audio for a given voice command."""
-    os.makedirs("input_file", exist_ok=True)
+commands = [
+    "Open Youtube on Brave",
+    "Get Me Gmail",
+    "New Word Document"
+]
 
-    # Prepare text
-    command_text = chosen_command.replace("_", " ")
-    speaker = get_random_speaker()
+speaker = "v2/en_speaker_0"
+total_samples_per_command = 250
 
-    print(f"[INFO] Generating Bark audio for command: '{command_text}' ({speaker})")
+def main():
+    print("Loading Bark AI models...")
+    preload_models()
 
-    try:
-        # Generate audio
-        audio_array = generate_audio(command_text, history_prompt=speaker)
+    print(f"Generating {total_samples_per_command} samples per command using speaker: {speaker}")
+    for command in commands:
+        command_label = command.replace(" ", "_")
+        command_dir = os.path.join(output_dir, command_label)
+        os.makedirs(command_dir, exist_ok=True)
 
-        # Save as WAV
-        filename = f"test_{test_num}_{chosen_command}.wav"
-        filepath = os.path.join("input_file", filename)
-        write_wav(filepath, SAMPLE_RATE, audio_array)
+        print(f"\nGenerating for command: '{command}'")
+        generated = 0
+        with tqdm.tqdm(total=total_samples_per_command, desc=f"{command_label}") as pbar:
+            while generated < total_samples_per_command:
+                try:
+                    audio_array = generate_audio(command, history_prompt=speaker)
+                    audio_arr = np.array(audio_array, dtype=np.float32)
 
-        print(f"[OK] Saved: {filepath}")
-        return filepath
-    except Exception as e:
-        print(f"[ERROR] Failed to generate audio for {chosen_command}: {e}")
-        return None
+                    # simple normalization (safeguard)
+                    max_val = np.max(np.abs(audio_arr))
+                    if max_val > 0:
+                        audio_arr = audio_arr * (0.9 / max_val)
+
+                    filename = f"{command_label}_speaker0_var{generated:03d}.wav"
+                    filepath = os.path.join(command_dir, filename)
+                    write_wav(filepath, SAMPLE_RATE, audio_arr)
+
+                    generated += 1
+                    pbar.update(1)
+
+                except Exception as e:
+                    print(f"Warning: failed to generate sample {generated} for '{command}': {e}")
+                    # continue attempting until total reached
+
+        print(f"Finished: generated {generated} files for '{command}'")
+
+    print("\nAll commands generated.")
+    print(f"Output folder: {output_dir}")
 
 if __name__ == "__main__":
-    from bark import preload_models
-    preload_models()
-    num_files = 300  # change as needed
-    for i in range(num_files):
-        chosen_command = get_random_command()
-        print(f"\n[{i+1}/{num_files}] Command: {chosen_command}")
-        filepath = generate_input_command(i, chosen_command)
-        if filepath is None:
-            print("[WARN] Skipped due to error.")
+    main()
