@@ -37,12 +37,14 @@ def run_tests(model_path, audio_input):
     return prediction, confidence
 
 if __name__ == "__main__":
-    model_path = os.path.join("models", "saved", "conformer_best_model_from_colab.pth")
+    print("Starting tests")
+
+    model_path = os.path.join("models", "saved", "conformer_best_model_oct22.pth")
     
     testIteration = 0
 
     print("Running tests...")
-    with open("test_results.csv", mode="w", newline='') as file:
+    with open("test_results_oct22.csv", mode="w", newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["Audio Input", "Expected Command", "Predicted Command", "Match", "Confidence"])
 
