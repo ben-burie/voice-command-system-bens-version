@@ -42,6 +42,7 @@ for command in commands:
     print(f"\nGenerating synthetic speech for: '{command}'")
 
     with tqdm.tqdm(total=total_samples_per_command, desc="Generating audio") as pbar:
+        sample_count = 0
 
         final_audio = generate_audio(command, history_prompt="v2/en_speaker_0")
 
