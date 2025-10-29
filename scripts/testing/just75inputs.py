@@ -29,8 +29,6 @@ speakers = [
     "v2/en_speaker_0"
 ]
 
-total_samples_per_command = 75  # Total samples to generate per command
-
 generated_files = []
 
 for command in commands:
@@ -41,20 +39,22 @@ for command in commands:
     
     print(f"\nGenerating synthetic speech for: '{command}'")
 
+    total_samples_per_command = 59  # Total samples to generate per command
+    sample_count = 0
+
     with tqdm.tqdm(total=total_samples_per_command, desc="Generating audio") as pbar:
-        sample_count = 0
+        while sample_count < total_samples_per_command:
+            try:
+                final_audio = generate_audio(command, history_prompt="v2/en_speaker_0")
 
-        final_audio = generate_audio(command, history_prompt="v2/en_speaker_0")
+                # Save file
+                filename = f"{command_label}_speaker_0_var{sample_count:03d}.wav"
+                filepath = os.path.join(command_dir, filename)
+                
+                write_wav(filepath, SAMPLE_RATE, final_audio)
+                generated_files.append(filepath)
 
-        # Save file
-        filename = f"{command_label}_speaker_0_var{sample_count:03d}.wav"
-        filepath = os.path.join(command_dir, filename)
-        
-        write_wav(filepath, SAMPLE_RATE, final_audio)
-        generated_files.append(filepath)
-
-        sample_count += 1
-        pbar.update(1)
-
-        if sample_count >= total_samples_per_command:
-            break
+                sample_count += 1
+                pbar.update(1)
+            except Exception as e:
+                print(f"Warning: failed to generate sample {sample_count} for '{command}': {e}")

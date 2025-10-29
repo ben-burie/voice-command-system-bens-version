@@ -39,12 +39,12 @@ def run_tests(model_path, audio_input):
 if __name__ == "__main__":
     print("Starting tests")
 
-    model_path = os.path.join("models", "saved", "conformer_best_model_oct22.pth")
+    model_path = os.path.join("models", "saved", "model_59_inputs_oct_28.pth") # Change model path as needed here
     
     testIteration = 0
 
     print("Running tests...")
-    with open("test_results_oct22.csv", mode="w", newline='') as file:
+    with open("test_results_oct28.csv", mode="w", newline='') as file: # Change input file name as needed here
         writer = csv.writer(file)
         writer.writerow(["Audio Input", "Expected Command", "Predicted Command", "Match", "Confidence"])
 
