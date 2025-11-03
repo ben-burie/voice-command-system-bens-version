@@ -1,4 +1,4 @@
-# Command to run: python -m scripts.testAutomation_v2
+# Command to run: python -m scripts.testing.testAutomation_v2
 
 import sys
 import os
@@ -29,7 +29,6 @@ def run_tests(model_path, audio_input):
     if not os.path.exists(model_path):
         print(f"Model path {model_path} does not exist. Please check the path.")
         return
-
     system = ConformerVoiceCommandSystem(model_path)
 
     prediction, confidence = system.predict_command_from_wav(audio_input) # Call predict_command_from_wav function - this is where the prediction happens
@@ -39,12 +38,12 @@ def run_tests(model_path, audio_input):
 if __name__ == "__main__":
     print("Starting tests")
 
-    model_path = os.path.join("models", "saved", "model_59_inputs_oct_28.pth") # Change model path as needed here
+    model_path = os.path.join("models", "saved", "open_youtube_on_brave_250_model_oct_29 (3).pth") # Change model path as needed here
     
     testIteration = 0
 
     print("Running tests...")
-    with open("test_results_oct28.csv", mode="w", newline='') as file: # Change input file name as needed here
+    with open("test_results_oct29.csv", mode="w", newline='') as file: # Change input file name as needed here
         writer = csv.writer(file)
         writer.writerow(["Audio Input", "Expected Command", "Predicted Command", "Match", "Confidence"])
 

@@ -31,30 +31,31 @@ speakers = [
 
 generated_files = []
 
-command = commands[0]  # Just generate "Open Youtube on Brave" for now ##########################################
+#command = commands[0]  # Just generate "Open Youtube on Brave" for now ##########################################
 
-command_label = command.replace(" ", "_")
-command_dir = os.path.join(output_dir, command_label)
-os.makedirs(command_dir, exist_ok=True)
+for command in commands:
+    command_label = command.replace(" ", "_")
+    command_dir = os.path.join(output_dir, command_label)
+    os.makedirs(command_dir, exist_ok=True)
 
-print(f"\nGenerating synthetic speech for: '{command}'")
+    print(f"\nGenerating synthetic speech for: '{command}'")
 
-total_samples_per_command = 250  # Total samples to generate per command
-sample_count = 0
+    total_samples_per_command = 250  # Total samples to generate per command
+    sample_count = 0
 
-with tqdm.tqdm(total=total_samples_per_command, desc="Generating audio") as pbar:
-    while sample_count < total_samples_per_command:
-        try:
-            final_audio = generate_audio(command, history_prompt="v2/en_speaker_0")
+    with tqdm.tqdm(total=total_samples_per_command, desc="Generating audio") as pbar:
+        while sample_count < total_samples_per_command:
+            try:
+                final_audio = generate_audio(command, history_prompt="v2/en_speaker_0")
 
-            # Save file
-            filename = f"{command_label}_speaker_0_var{sample_count:03d}.wav"
-            filepath = os.path.join(command_dir, filename)
-            
-            write_wav(filepath, SAMPLE_RATE, final_audio)
-            generated_files.append(filepath)
+                # Save file
+                filename = f"{command_label}_speaker_0_var{sample_count:03d}.wav"
+                filepath = os.path.join(command_dir, filename)
+                
+                write_wav(filepath, SAMPLE_RATE, final_audio)
+                generated_files.append(filepath)
 
-            sample_count += 1
-            pbar.update(1)
-        except Exception as e:
-            print(f"Warning: failed to generate sample {sample_count} for '{command}': {e}")
+                sample_count += 1
+                pbar.update(1)
+            except Exception as e:
+                print(f"Warning: failed to generate sample {sample_count} for '{command}': {e}")
