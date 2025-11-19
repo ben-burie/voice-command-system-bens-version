@@ -37,8 +37,8 @@ def run_tests(model_path, audio_input):
 
 if __name__ == "__main__":
 
-    RESULTS_FILE = "results/additonal_test_results.csv"
-    MODEL = "open_youtube_on_brave_250_model_oct_29 (3).pth" 
+    RESULTS_FILE = "results/1500inputs_M1.csv"
+    MODEL = "1500inputs_M1.pth" 
 
     print("Starting tests")
 

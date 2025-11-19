@@ -212,8 +212,8 @@ class ConformerBlock(nn.Module):
 
     def forward(self, x):
         x = x + 0.5 * self.ff_module1(x)
-        x = self.self_attn_module(x)
-        x = self.conv_module(x)
+        x = self.self_attn_module(x) # x + self.self_attn_module(x)
+        x = self.conv_module(x) # x + self.conv_module(x)
         x = x + 0.5 * self.ff_module2(x)
         x = self.layer_norm(x)
         return x

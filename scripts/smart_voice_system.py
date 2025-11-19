@@ -16,7 +16,7 @@ class SmartVoiceCommandSystem:
     
     def __init__(self, 
                  base_data_dir: str = "data_barkAI_large",
-                 model_path: str = "models\saved/conformer_best_model_from_colab.pth",
+                 model_path: str = "models\saved/1500inputs_M1.pth", #"models\saved/conformer_best_model_from_colab.pth"
                  config_path: str = "config/smart_system_config.json"):
         
         self.base_data_dir = Path(base_data_dir)
