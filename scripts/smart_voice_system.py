@@ -16,7 +16,7 @@ class SmartVoiceCommandSystem:
     
     def __init__(self, 
                  base_data_dir: str = "data_barkAI_large",
-                 model_path: str = "models\saved/1500inputs_M1.pth", #"models\saved/conformer_best_model_from_colab.pth"
+                 model_path: str = "new_model.pth", #"models\saved/conformer_best_model_from_colab.pth" -- "models\saved/6000samples_1426.pth"
                  config_path: str = "config/smart_system_config.json"):
         
         self.base_data_dir = Path(base_data_dir)
@@ -154,6 +154,12 @@ class SmartVoiceCommandSystem:
             
             if success:
                 print(" Model finetuning completed successfully!")
+
+                if self.model_path.exists():
+                    print(f"✓ Model file verified at: {self.model_path}")
+                else:
+                    print(f"⚠ Warning: Model file not found at expected path!")
+
                 return True
             else:
                 print(" Model finetuning failed!")
@@ -294,6 +300,7 @@ class SmartVoiceCommandSystem:
         if self.is_running:
             status_icon = "PAUSED" if self.is_paused else "LISTENING"
             print(f" Voice Status: {status_icon}")
+        print(f"Model: {self.model_path}")
         
         # Recent commands
         if all_commands:

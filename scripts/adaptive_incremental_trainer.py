@@ -88,7 +88,7 @@ class AdaptiveIncrementalTrainer:
                 int(total_blocks * unfreeze_ratio)
             )
         )
-        
+        # Unfreeze layers can be a fractional amount
         base_lr = self.config["adaptive_settings"]["base_learning_rate"]
         lr_scale = 1.0 / (1.0 + 0.1 * math.log(num_commands))
         adjusted_lr = base_lr * lr_scale
@@ -403,6 +403,7 @@ class AdaptiveIncrementalTrainer:
         }
         
         torch.save(checkpoint, self.model_path)
+        print(f"✓ Model checkpoint saved to: {self.model_path}")
         torch.save(self.model.state_dict(), str(self.model_path).replace('.pth', '_state_dict.pth'))
     
     def quick_add_command(self, command_name: str, audio_files: List[str]) -> bool:

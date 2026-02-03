@@ -18,8 +18,10 @@ def get_matching_command(file):
         command = "Get_Me_Gmail"
     elif "New_Word_Document" in filename:
         command = "New_Word_Document"
-    elif "Open_Youtube_On_Brave" in filename:
-        command = "Open_Youtube_On_Brave"   
+    elif "Open_Youtube_On_Brave" in filename or "Open_Youtube_on_Brave" in filename:
+        command = "Open_Youtube_On_Brave" 
+    elif "Open_Amazon" in filename:
+        command = "Open_Amazon"  
     else:
         command = "UNKNOWN COMMAND"
 
@@ -37,13 +39,15 @@ def run_tests(model_path, audio_input):
 
 if __name__ == "__main__":
 
-    RESULTS_FILE = "results/1500inputs_M1.csv"
-    MODEL = "1500inputs_M1.pth" 
+    RESULTS_FILE = "results/badmodel.csv"
+    MODEL = "new_model.pth" 
+    TEST_DIRECTORY = "input_file_100_w_amazon"
 
     print("Starting tests")
 
-    model_path = os.path.join("models", "saved", MODEL)
-    
+    #model_path = os.path.join("models", "saved", MODEL)
+    model_path = MODEL
+
     testIteration = 0
 
     print("Running tests...")
@@ -51,12 +55,12 @@ if __name__ == "__main__":
         writer = csv.writer(file)
         writer.writerow(["Audio Input", "Expected Command", "Predicted Command", "Match", "Confidence"])
 
-        for file in os.listdir("input_file"):
+        for file in os.listdir(TEST_DIRECTORY):
             print("Generated file:", file)
             expected_command = get_matching_command(file)
             print(expected_command)
 
-            audio_input = "input_file/" + file
+            audio_input = TEST_DIRECTORY + "/" + file
             assert os.path.exists(audio_input), f"Audio input file {audio_input} does not exist."
             prediction, confidence = run_tests(model_path, audio_input)
 
@@ -90,6 +94,9 @@ if __name__ == "__main__":
         wordDocCorrect = 0
         wordDocIncorrect = 0
 
+        amazonCorrect = 0
+        amazonIncorrect = 0
+
         confidenceCount = 0
 
         #row[0] = input file
@@ -119,13 +126,20 @@ if __name__ == "__main__":
                     wordDocCorrect += 1
                 else:
                     wordDocIncorrect += 1
+            elif row[1] == "Open_Amazon":
+                if row[3] == "YES":
+                    amazonCorrect += 1
+                else:
+                    amazonIncorrect += 1
 
     overallAccuracy = (correctCount / (correctCount + incorrectCount)) * 100 if (correctCount + incorrectCount) else 0.0
     gmailAccuracy = (gmailCorrect / (gmailCorrect + gmailIncorrect)) * 100 if (gmailCorrect + gmailIncorrect) else 0.0
     youtubeAccuracy = (youtubeCorrect / (youtubeCorrect + youtubeIncorrect)) * 100 if (youtubeCorrect + youtubeIncorrect) else 0.0
     wordDocAccuracy = (wordDocCorrect / (wordDocCorrect + wordDocIncorrect)) * 100 if (wordDocCorrect + wordDocIncorrect) else 0.0
+    amazonAccuracy = (amazonCorrect / (amazonCorrect + amazonIncorrect)) * 100 if (amazonCorrect + amazonIncorrect) else 0.0
 
     print(f"Overall Accuracy: {overallAccuracy:.2f}%")
     print(f"Gmail Command Accuracy: {gmailAccuracy:.2f}%")
     print(f"YouTube Command Accuracy: {youtubeAccuracy:.2f}%")
     print(f"Word Document Command Accuracy: {wordDocAccuracy:.2f}%")
+    print(f"Amazon Command Accuracy: {amazonAccuracy:.2f}%")

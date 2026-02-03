@@ -1,7 +1,30 @@
 {
-  "commands": {},
-  "last_trained": null,
-  "model_version": 1,
+  "commands": {
+    "Open_Amazon": {
+      "action": {
+        "type": "website",
+        "url": "https://www.amazon.com/",
+        "browser": "chrome"
+      },
+      "audio_files": [
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker0_var000.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker0_var001.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker0_var002.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker0_var003.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker0_var004.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker1_var005.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker1_var006.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker1_var007.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker1_var008.wav",
+        "data_barkAI_large\\Open_Amazon\\Open_Amazon_speaker1_var009.wav"
+      ],
+      "added_date": "2026-02-01T20:22:19.030655",
+      "sample_count": 10,
+      "generation_method": "bark_ai"
+    }
+  },
+  "last_trained": "2026-02-01T20:36:28.182798",
+  "model_version": 2,
   "auto_retrain": true,
   "retrain_threshold": 5
 }

@@ -27,5 +27,11 @@ __pycache__/
 Thumbs.db
 
 # Model checkpoints (optional - uncomment if you want to exclude large model files)
-# *.pth
+*.pth
 # *.ckpt
+
+# Audio
+*.wav
+
+# Results
+*.csv

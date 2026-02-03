@@ -276,6 +276,8 @@ class ConformerVoiceCommandSystem:
     
     def _open_browser_url(self, browser, url):
         """Open a URL in the specified browser"""
+        print("Disabled.")
+        return
         try:
             if not url.startswith(('http://', 'https://')):
                 url = f"https://{url}"
@@ -767,7 +769,7 @@ def main():
         print("Starting Conformer-based voice command recognition system...")
         print("Make sure your microphone is working and is the default input device")
         
-        model_path = "models/conformer_best_model.pth"
+        model_path = "models/master_data_set_model.pth"
         
         if not os.path.exists(model_path):
             print(f"Error: Model file not found at {model_path}")

@@ -29,7 +29,7 @@ from voiceCommandConformer import ConformerModel, ConformerVoiceCommandSystem
 
 class AutomatedCommandSystem:
     
-    def __init__(self, base_data_dir="data_barkAI_large", model_path="models/conformer_best_model.pth", 
+    def __init__(self, base_data_dir="data_barkAI_large", model_path="models\saved/6000samples_1426.pth", 
                  config_path="config/command_config.json"):
         self.base_data_dir = Path(base_data_dir)
         self.model_path = Path(model_path)
