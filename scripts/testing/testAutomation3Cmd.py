@@ -1,4 +1,4 @@
-# Command to run: python -m scripts.testing.testAutomation_v2
+# Command to run: python -m scripts.testing.testAutomation3Cmd
 
 import sys
 import os
@@ -20,8 +20,7 @@ def get_matching_command(file):
         command = "New_Word_Document"
     elif "Open_Youtube_On_Brave" in filename or "Open_Youtube_on_Brave" in filename:
         command = "Open_Youtube_On_Brave" 
-    elif "Open_Amazon" in filename:
-        command = "Open_Amazon"  
+    # Removed Open_Amazon case
     else:
         command = "UNKNOWN COMMAND"
 
@@ -56,9 +55,19 @@ if __name__ == "__main__":
         writer.writerow(["Audio Input", "Expected Command", "Predicted Command", "Match", "Confidence"])
 
         for file in os.listdir(TEST_DIRECTORY):
+            # Skip any Open_Amazon files
+            if "Open_Amazon" in file:
+                print(f"Skipping {file} (Open_Amazon not supported in this model)")
+                continue
+                
             print("Generated file:", file)
             expected_command = get_matching_command(file)
             print(expected_command)
+            
+            # Skip if command is unknown
+            if expected_command == "UNKNOWN COMMAND":
+                print(f"Skipping {file} (unknown command)")
+                continue
 
             audio_input = TEST_DIRECTORY + "/" + file
             assert os.path.exists(audio_input), f"Audio input file {audio_input} does not exist."
@@ -94,8 +103,7 @@ if __name__ == "__main__":
         wordDocCorrect = 0
         wordDocIncorrect = 0
 
-        amazonCorrect = 0
-        amazonIncorrect = 0
+        # Removed amazonCorrect and amazonIncorrect variables
 
         confidenceCount = 0
 
@@ -126,20 +134,16 @@ if __name__ == "__main__":
                     wordDocCorrect += 1
                 else:
                     wordDocIncorrect += 1
-            elif row[1] == "Open_Amazon":
-                if row[3] == "YES":
-                    amazonCorrect += 1
-                else:
-                    amazonIncorrect += 1
+            # Removed Open_Amazon case
 
     overallAccuracy = (correctCount / (correctCount + incorrectCount)) * 100 if (correctCount + incorrectCount) else 0.0
     gmailAccuracy = (gmailCorrect / (gmailCorrect + gmailIncorrect)) * 100 if (gmailCorrect + gmailIncorrect) else 0.0
     youtubeAccuracy = (youtubeCorrect / (youtubeCorrect + youtubeIncorrect)) * 100 if (youtubeCorrect + youtubeIncorrect) else 0.0
     wordDocAccuracy = (wordDocCorrect / (wordDocCorrect + wordDocIncorrect)) * 100 if (wordDocCorrect + wordDocIncorrect) else 0.0
-    amazonAccuracy = (amazonCorrect / (amazonCorrect + amazonIncorrect)) * 100 if (amazonCorrect + amazonIncorrect) else 0.0
+    # Removed amazonAccuracy calculation
 
     print(f"Overall Accuracy: {overallAccuracy:.2f}%")
     print(f"Gmail Command Accuracy: {gmailAccuracy:.2f}%")
     print(f"YouTube Command Accuracy: {youtubeAccuracy:.2f}%")
     print(f"Word Document Command Accuracy: {wordDocAccuracy:.2f}%")
-    print(f"Amazon Command Accuracy: {amazonAccuracy:.2f}%")
+    # Removed Amazon accuracy print statement

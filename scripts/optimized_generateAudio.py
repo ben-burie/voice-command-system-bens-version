@@ -22,7 +22,7 @@ except ImportError:
 BASE_SAMPLES_PER_SPEAKER = 2  # Down from 25 before
 SAMPLES_PER_COMMAND = 2000
 NUM_SPEAKERS = 10
-NUM_AUGMENTATIONS_PER_BASE = 99  # Each base sample gets ~10 augmented versions
+NUM_AUGMENTATIONS_PER_BASE = 19  # Each base sample gets ~10 augmented versions
 
 # PERFORMANCE OPTIMIZATION
 NUM_WORKER_THREADS = 4  # Parallel audio save + light augmentation
